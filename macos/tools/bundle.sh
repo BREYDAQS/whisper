@@ -38,6 +38,10 @@ cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 # Diaryzacja (~100 MB) celowo nie jedzie w paczce: jest opcjonalna
 # i aplikacja pobiera ją sama przy pierwszym użyciu.
 
+# Skąd apka pochodzi: z tego klona `Updater` ściąga zmiany i przebudowuje ją.
+REPO="$(cd "$ROOT/.." && pwd)"
+COMMIT="$(git -C "$REPO" rev-parse HEAD 2>/dev/null || echo unknown)"
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -52,6 +56,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key><string>0.2.0</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>26.0</string>
+  <key>CWSourceRepo</key><string>$REPO</string>
+  <key>CWSourceCommit</key><string>$COMMIT</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>CFBundleDocumentTypes</key>
   <array>

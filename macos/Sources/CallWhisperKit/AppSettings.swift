@@ -116,7 +116,7 @@ public final class AppSettings: ObservableObject {
         case markdownLocale, absoluteTimestamps, minConfidence, title, projectContextPath
         case asrBackend, whisperModel, whisperPort, autoStartWhisper, identifySpeakers
         case diarizeAfter, detectMeetings, autoStartOnMeeting, followOBS, whisperVocabulary
-        case notchIsland
+        case notchIsland, autoUpdate
     }
 
     /// Domyślny język mowy bierzemy z systemu, a nie na sztywno — inaczej
@@ -169,6 +169,7 @@ public final class AppSettings: ObservableObject {
             Key.autoStartOnMeeting.rawValue: false,
             Key.followOBS.rawValue: true,
             Key.notchIsland.rawValue: true,
+            Key.autoUpdate.rawValue: true,
         ])
     }
 
@@ -306,6 +307,12 @@ public final class AppSettings: ObservableObject {
     public var notchIsland: Bool {
         get { get(.notchIsland, true) }
         set { set(.notchIsland, newValue) }
+    }
+
+    /// Ściąganie zmian z GitHuba i przebudowa apki (tylko pull, nigdy push).
+    public var autoUpdate: Bool {
+        get { get(.autoUpdate, true) }
+        set { set(.autoUpdate, newValue) }
     }
 
     /// Zaczynaj nasłuch sam, gdy wykryjesz rozmowę, i kończ, gdy się skończy.

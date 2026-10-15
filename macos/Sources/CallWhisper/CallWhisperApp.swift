@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     let meetings = MeetingWatcher()
     let notch = NotchIslandController()
     let obs = OBSLink()
+    lazy var updater = Updater(recorder: recorder)
     private let settings = AppSettings.shared
     /// Nasłuch włączony przez wykrywanie — tylko taki wolno nam samym zatrzymać.
     private var autoStarted = false
@@ -46,6 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         obs.onRecordStop = { [weak self] path in self?.obsRecordingStopped(path: path) }
         syncOBS()
         syncNotch()
+        updater.start()
     }
 
     /// Wyspa w notchu włączana i wyłączana z Ustawień bez restartu.
@@ -161,7 +163,8 @@ struct CallWhisperApp: App {
 
     var body: some Scene {
         Window("call-whisper", id: "main") {
-            MainView(recorder: recorder, settings: settings, overlay: overlay, meetings: delegate.meetings)
+            MainView(recorder: recorder, settings: settings, overlay: overlay, meetings: delegate.meetings,
+                     updater: delegate.updater)
                 .frame(minWidth: 720, minHeight: 500)
                 .onChange(of: settings.followOBS) { _, _ in delegate.syncOBS() }
         }
@@ -178,7 +181,7 @@ struct CallWhisperApp: App {
         }
 
         Settings {
-            SettingsView(settings: settings, obs: delegate.obs)
+            SettingsView(settings: settings, obs: delegate.obs, updater: delegate.updater)
                 .tint(M3.color.primary)
                 .onChange(of: settings.detectMeetings) { _, _ in delegate.syncMeetingDetection() }
                 .onChange(of: settings.followOBS) { _, _ in delegate.syncOBS() }

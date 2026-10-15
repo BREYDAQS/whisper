@@ -5,6 +5,7 @@ import CallWhisperCore
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var obs: OBSLink
+    @ObservedObject var updater: Updater
     @State private var probeResult: String?
     @State private var probing = false
     @State private var modelStatus: String = "sprawdzam…"
@@ -112,9 +113,38 @@ struct SettingsView: View {
                 Toggle("Znaczniki czasu jako godzina zegarowa", isOn: Binding(
                     get: { settings.absoluteTimestamps }, set: { settings.absoluteTimestamps = $0 }))
             }
+
+            Section("Aktualizacje") {
+                if let repo = updater.repo {
+                    Toggle("Aktualizuj z GitHuba samoczynnie", isOn: Binding(
+                        get: { settings.autoUpdate }, set: { settings.autoUpdate = $0 }))
+                    HStack {
+                        Text(updateStatus).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Sprawdź teraz") { Task { await updater.check(force: true) } }
+                            .disabled(updater.state == .checking || updater.state == .building)
+                    }
+                    Text("Co 30 minut: git pull --ff-only w \(repo.path), przebudowa i restart. Nigdy nie wypycha zmian. Przy lokalnych zmianach albo niewypchniętych commitach nic nie robi. W trakcie nasłuchu czeka do końca rozmowy.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("Niedostępne: apka nie była zbudowana z klona repo (npm run mac:build).")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
         }
         .formStyle(.grouped)
         .padding()
+    }
+
+    private var updateStatus: String {
+        switch updater.state {
+        case .idle:
+            return updater.lastCheck.map { "Aktualna · sprawdzono \($0.formatted(date: .omitted, time: .shortened))" } ?? "Jeszcze nie sprawdzano"
+        case .checking: return "Sprawdzam…"
+        case .waiting(let behind): return "Nowe commity: \(behind), czekam na koniec nasłuchu"
+        case .building: return "Pobieram i przebudowuję…"
+        case .blocked(let why), .failed(let why): return why
+        }
     }
 
     private var speech: some View {

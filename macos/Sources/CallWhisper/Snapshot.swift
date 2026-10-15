@@ -25,7 +25,7 @@ func runSnapshot(directory: String, file: String?) async -> Int32 {
     try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
     for (name, appearance) in [("jasny", NSAppearance.Name.aqua), ("ciemny", .darkAqua)] {
         let view = MainView(recorder: recorder, settings: .shared, overlay: OverlayController(),
-                            meetings: MeetingWatcher())
+                            meetings: MeetingWatcher(), updater: Updater(recorder: recorder))
             .frame(width: 980, height: 680)
         let host = NSHostingView(rootView: view)
         host.frame = NSRect(x: 0, y: 0, width: 980, height: 680)

@@ -12,6 +12,7 @@ struct MainView: View {
     @ObservedObject var settings: AppSettings
     var overlay: OverlayController
     @ObservedObject var meetings: MeetingWatcher
+    @ObservedObject var updater: Updater
 
     @State private var manualQuestion = ""
     @State private var dropTargeted = false
@@ -565,6 +566,7 @@ struct MainView: View {
                         .scaleEffect(0.85)
                 }
                 Spacer()
+                updateBadge
                 if let copiedMessage {
                     Label(copiedMessage, systemImage: "checkmark")
                         .font(M3.type.labelMedium)
@@ -582,6 +584,23 @@ struct MainView: View {
             .frame(height: 36)
         }
         .padding(.top, 4)
+    }
+
+    /// Stan aktualizacji z GitHuba; cicho, gdy nie ma nic do zrobienia.
+    @ViewBuilder private var updateBadge: some View {
+        switch updater.state {
+        case .waiting(let behind):
+            Label("Nowa wersja (\(behind)) — zaktualizuję po nasłuchu", systemImage: "arrow.down.circle")
+                .font(M3.type.labelMedium).foregroundStyle(M3.color.primary)
+        case .building:
+            Label("Aktualizuję i przebudowuję…", systemImage: "arrow.triangle.2.circlepath")
+                .font(M3.type.labelMedium).foregroundStyle(M3.color.primary)
+        case .failed(let why):
+            Label(why, systemImage: "exclamationmark.arrow.circlepath")
+                .font(M3.type.labelMedium).foregroundStyle(M3.color.error).lineLimit(1).help(why)
+        case .idle, .checking, .blocked:
+            EmptyView()
+        }
     }
 
     /// Skąd faktycznie idą podpowiedzi. Wcześniej pokazywał się tu zawsze

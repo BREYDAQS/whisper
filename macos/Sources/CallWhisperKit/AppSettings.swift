@@ -117,7 +117,7 @@ public final class AppSettings: ObservableObject {
         case asrBackend, whisperModel, whisperPort, autoStartWhisper, identifySpeakers
         case diarizeAfter, detectMeetings, autoStartOnMeeting, followOBS, whisperVocabulary
         case notchIsland, autoUpdate
-        case importModel, importDiarize, importSpeakers, parakeetModel
+        case importModel, importDiarize, importSpeakers, parakeetModel, autoAnalyze
     }
 
     /// Domyślny język mowy bierzemy z systemu, a nie na sztywno — inaczej
@@ -175,6 +175,7 @@ public final class AppSettings: ObservableObject {
             Key.importDiarize.rawValue: true,
             Key.importSpeakers.rawValue: 0,
             Key.parakeetModel.rawValue: "parakeet-tdt-0.6b-v3",
+            Key.autoAnalyze.rawValue: false,
         ])
     }
 
@@ -362,6 +363,12 @@ public final class AppSettings: ObservableObject {
     public var asrBackend: ASRBackend {
         get { ASRBackend(rawValue: get(.asrBackend, ASRBackend.whisperLocal.rawValue)) ?? .whisperLocal }
         set { set(.asrBackend, newValue.rawValue) }
+    }
+
+    /// Analiza przez Claude Code sama po rozmowie i po imporcie.
+    public var autoAnalyze: Bool {
+        get { get(.autoAnalyze, false) }
+        set { set(.autoAnalyze, newValue) }
     }
 
     /// Model Parakeet na żywo (gdy silnikiem jest Parakeet).

@@ -37,6 +37,8 @@ public struct ImportItem: Codable, Identifiable, Sendable, Equatable {
     /// Dlaczego nie było podziału na głosy, choć był zamówiony.
     public var note: String?
     public var frames: [Frame]
+    /// Analiza Claude Code (Markdown); `nil` = jeszcze nie analizowano.
+    public var analysis: String?
 
     public var isVideo: Bool {
         MediaImport.videoExtensions.contains(URL(fileURLWithPath: mediaPath).pathExtension.lowercased())
@@ -58,6 +60,8 @@ public final class ImportCenter: ObservableObject {
     @Published public private(set) var progress: MediaImport.Progress?
     /// Prośba o pokazanie pozycji w oknie, np. po upuszczeniu pliku na Dock.
     @Published public var focusRequest: String?
+    @Published public private(set) var analyzing: Set<String> = []
+    @Published public private(set) var analysisErrors: [String: String] = [:]
 
     static let maxAttempts = 2
 
@@ -206,6 +210,7 @@ public final class ImportCenter: ObservableObject {
                 $0.speakerCount = result.speakerCount
                 $0.note = result.diarizationNote
             }
+            if settings.autoAnalyze, !result.segments.isEmpty { analyze(id) }
         } catch is CancellationError {
             update(id) { $0.status = .failed; $0.error = "Przerwano" }
         } catch let error as URLError where error.code == .cancelled {
@@ -300,6 +305,7 @@ public final class ImportCenter: ObservableObject {
         options.locale = settings.markdownLocale
         options.absoluteTimestamps = settings.absoluteTimestamps
         var out = Markdown.render(Session(meta: transcript.meta, segments: transcript.segments), options: options)
+        if let analysis = item.analysis { out = CallAnalysis.insert(analysis, into: out) }
         if !item.frames.isEmpty {
             out += "\n## Klatki\n\n"
             for frame in item.frames.sorted(by: { $0.seconds < $1.seconds }) {
@@ -308,6 +314,26 @@ public final class ImportCenter: ObservableObject {
             }
         }
         return out
+    }
+
+    // MARK: - analiza
+
+    public func analyze(_ id: String) {
+        guard let item = item(id), item.status == .done, !analyzing.contains(id),
+              let transcript = transcript(id), !transcript.segments.isEmpty else { return }
+        analyzing.insert(id)
+        analysisErrors[id] = nil
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let text = try await CallAnalyst.run(segments: transcript.segments, title: item.title,
+                                                     settings: self.settings)
+                self.update(id) { $0.analysis = text }
+            } catch {
+                self.analysisErrors[id] = error.localizedDescription
+            }
+            self.analyzing.remove(id)
+        }
     }
 
     // MARK: - klatki

@@ -409,7 +409,7 @@ func runDiarize(path: String, speakers: Int?) async -> Int32 {
     }
 }
 
-/// `call-whisper --import <nagranie|wideo> [--speakers auto|N] [--model id]` —
+/// `call-whisper --import <nagranie|wideo> [--speakers auto|N] [--model id] [--analyze]` —
 /// import z terminala, Markdown na stdout. Odpowiednik `openwhispr-video
 /// import` z whistlera, tyle że bez działającej aplikacji w tle.
 func runImport(path: String, diarize: Bool, speakers: Int?, model: String?) async -> Int32 {
@@ -454,7 +454,14 @@ func runImport(path: String, diarize: Bool, speakers: Int?, model: String?) asyn
         if let note = result.diarizationNote { log("bez podziału na głosy: \(note)") }
         log(String(format: "gotowe w %.1f s: %d wypowiedzi, %d głosów", Date().timeIntervalSince(started),
                    result.segments.count, result.speakerCount))
-        print(Markdown.render(Session(meta: result.meta, segments: result.segments)))
+        var markdown = Markdown.render(Session(meta: result.meta, segments: result.segments))
+        // `--analyze`: ta sama analiza Claude Code co przycisk „Analiza".
+        if arguments.contains("--analyze"), !result.segments.isEmpty {
+            log("analizuję przez Claude Code…")
+            let analysis = try await CallAnalyst.run(segments: result.segments, title: result.meta.title)
+            markdown = CallAnalysis.insert(analysis, into: markdown)
+        }
+        print(markdown)
         return result.segments.isEmpty ? 3 : 0
     } catch {
         await server.stop()

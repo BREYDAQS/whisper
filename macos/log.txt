@@ -46,3 +46,21 @@
 [2026-10-15 11:24:22] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
 [2026-10-15 11:24:22] [connect] WebSocket Connection 127.0.0.1:57630 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
 [2026-10-15 11:24:22] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:26:02] [error] handle_read_handshake error: websocketpp.transport:7 (End of File)
+[2026-10-15 11:26:18] [connect] WebSocket Connection 127.0.0.1:57799 v13 "swift-frontend (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:26:18] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:26:18] [connect] WebSocket Connection 192.168.1.10:57801 v13 "swift-frontend (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:26:19] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:26:49] [connect] WebSocket Connection 127.0.0.1:57898 v13 "ws2 (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:26:49] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:26:50] [connect] WebSocket Connection 192.168.1.10:57899 v13 "ws2 (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:26:50] [error] handle_read_frame error: websocketpp.transport:7 (End of File)
+[2026-10-15 11:26:50] [disconnect] Disconnect close local:[1006,End of File] remote:[1006]
+[2026-10-15 11:26:56] [connect] WebSocket Connection 127.0.0.1:57911 v13 "ws2 (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:26:56] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:26:56] [connect] WebSocket Connection 192.168.1.10:57912 v13 "ws2 (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:26:57] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:27:03] [connect] WebSocket Connection 127.0.0.1:57925 v13 "ws2 (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:27:03] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:27:03] [connect] WebSocket Connection 192.168.1.10:57926 v13 "ws2 (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:27:03] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]

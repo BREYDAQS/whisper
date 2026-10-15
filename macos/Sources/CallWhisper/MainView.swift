@@ -30,6 +30,7 @@ struct MainView: View {
     @State private var selectionAnchor: String?
     @State private var busy = false
     @State private var showSetup = false
+    @State private var showAnalysis = false
     @State private var attachment: AssistantImage?
     /// Odświeżane przy podłączeniu i odłączeniu urządzenia.
     @State private var micDevices = MicrophoneCapture.devices
@@ -70,6 +71,11 @@ struct MainView: View {
         .background(M3.color.page)
         .tint(M3.color.primary)
         .sheet(isPresented: $showSetup) { SetupView(recorder: recorder) }
+        .sheet(isPresented: $showAnalysis) {
+            AnalysisSheet(title: recorder.importedMeta?.title ?? (settings.title.isEmpty ? "Rozmowa" : settings.title),
+                          text: recorder.analysis, running: recorder.isAnalyzing,
+                          error: recorder.analysisError, onRun: { recorder.analyze() })
+        }
         .onAppear { paste.start { attachment = $0 }; showRequested() }
         .onChange(of: imports.focusRequest) { _, _ in showRequested() }
         .onDisappear { paste.stop() }
@@ -140,6 +146,15 @@ struct MainView: View {
             .help(recorder.isProcessing
                   ? "Przerwij rozpoznawanie głosów"
                   : "Transkrybuj nagranie albo wideo (\(MediaImport.fileExtensions.joined(separator: ", "))). Można też upuścić plik na transkrypt.")
+
+            Button {
+                showAnalysis = true
+            } label: {
+                Label("Analiza", systemImage: recorder.isAnalyzing ? "hourglass" : "list.bullet.clipboard")
+            }
+            .buttonStyle(M3RailButtonStyle(selected: recorder.analysis != nil))
+            .disabled(recorder.segments.isEmpty || recorder.isRunning)
+            .help("Claude Code: podsumowanie, zadania, decyzje i pytania na kolejną rozmowę")
 
             // Podpowiedzi bywają hałasem (film, monolog), więc wyłącznik musi
             // być pod ręką. Wariant „selected" pokazuje stan.

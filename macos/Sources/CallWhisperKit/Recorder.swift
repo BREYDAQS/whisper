@@ -23,6 +23,10 @@ public final class Recorder: ObservableObject {
     @Published public private(set) var isProcessing = false
     /// Metadane sesji z importu; `nil` = rozmowa nagrana na żywo.
     @Published public private(set) var importedMeta: SessionMeta?
+    /// Analiza po rozmowie (Claude Code): podsumowanie, zadania, pytania.
+    @Published public private(set) var analysis: String?
+    @Published public private(set) var isAnalyzing = false
+    @Published public private(set) var analysisError: String?
 
     private var store = TranscriptStore()
     private var watcher: QuestionWatcher?
@@ -107,6 +111,8 @@ public final class Recorder: ObservableObject {
         }
 
         let now = origin ?? nowMs()
+        analysis = nil
+        analysisError = nil
         store = TranscriptStore(startedAt: now)
         startedAt = now
         segments = []
@@ -389,6 +395,31 @@ public final class Recorder: ObservableObject {
                 self?.saveTranscript(nextTo: videoPath)
             }
         }
+
+        // Po diaryzacji, żeby analiza widziała już właściwe etykiety osób.
+        if settings.autoAnalyze, !store.isEmpty {
+            Task { [weak self] in
+                await self?.waitForProcessing()
+                self?.analyze()
+            }
+        }
+    }
+
+    /// Analiza transkryptu na żądanie (albo sama po rozmowie).
+    public func analyze() {
+        guard !segments.isEmpty, !isAnalyzing, !isRunning else { return }
+        isAnalyzing = true
+        analysisError = nil
+        let title = importedMeta?.title ?? settings.title
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                self.analysis = try await CallAnalyst.run(segments: self.segments, title: title, settings: self.settings)
+            } catch {
+                self.analysisError = error.localizedDescription
+            }
+            self.isAnalyzing = false
+        }
     }
 
     /// Transkrypt obok pliku wideo z OBS, z tą samą nazwą i czasami
@@ -465,8 +496,10 @@ public final class Recorder: ObservableObject {
 
     /// Transkrypt z biblioteki importów w oknie rozmowy — eksport, kopiowanie
     /// i pytania do asystenta działają wtedy bez zmian.
-    public func show(meta: SessionMeta, segments: [Segment]) {
+    public func show(meta: SessionMeta, segments: [Segment], analysis: String? = nil) {
         guard !isRunning, !isProcessing else { return }
+        self.analysis = analysis
+        analysisError = nil
         store = TranscriptStore(startedAt: meta.startedAt ?? nowMs())
         answers = []
         self.segments = segments
@@ -713,7 +746,8 @@ public final class Recorder: ObservableObject {
             startedAt: startedAt,
             endedAt: segments.last?.endedAt
         )
-        return Markdown.render(Session(meta: meta, segments: segments), options: opts)
+        let md = Markdown.render(Session(meta: meta, segments: segments), options: opts)
+        return analysis.map { CallAnalysis.insert($0, into: md) } ?? md
     }
 
     /// Notatka do wklejenia w Claude: podsumowanie z kluczowymi punktami

@@ -258,6 +258,13 @@ struct SettingsView: View {
 
     private var assistantTab: some View {
         Form {
+            Section("Analiza po rozmowie") {
+                Toggle("Analizuj automatycznie po rozmowie i imporcie", isOn: Binding(
+                    get: { settings.autoAnalyze }, set: { settings.autoAnalyze = $0 }))
+                Text("Claude Code czyta cały transkrypt i pisze podsumowanie, zadania, decyzje i pytania na kolejną rozmowę. Bez tego — przycisk „Analiza”.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             Toggle("Podpowiadaj w rozmowie", isOn: Binding(
                 get: { settings.assistantEnabled }, set: { settings.assistantEnabled = $0 }))
 

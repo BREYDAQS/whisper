@@ -17,6 +17,7 @@ struct ImportView: View {
     var onOpen: () -> Void
 
     @State private var dropTargeted = false
+    @State private var analysisFor: String?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -24,6 +25,13 @@ struct ImportView: View {
             detailCard.frame(maxWidth: .infinity)
         }
         .onAppear { if selection == nil { selection = imports.items.first?.id } }
+        .sheet(item: Binding(get: { analysisFor.map(SheetID.init) }, set: { analysisFor = $0?.id })) { sheet in
+            AnalysisSheet(title: imports.item(sheet.id)?.title ?? "",
+                          text: imports.item(sheet.id)?.analysis,
+                          running: imports.analyzing.contains(sheet.id),
+                          error: imports.analysisErrors[sheet.id],
+                          onRun: { imports.analyze(sheet.id) })
+        }
     }
 
     // MARK: - lista
@@ -195,7 +203,7 @@ struct ImportView: View {
             if item.status == .done {
                 Button {
                     if let t = imports.transcript(item.id) {
-                        recorder.show(meta: t.meta, segments: t.segments)
+                        recorder.show(meta: t.meta, segments: t.segments, analysis: item.analysis)
                         onOpen()
                     }
                 } label: {
@@ -204,6 +212,15 @@ struct ImportView: View {
                 .buttonStyle(M3ButtonStyle(kind: .tonal, compact: true))
                 .disabled(recorder.isRunning || recorder.isProcessing)
                 .help("Transkrypt w oknie rozmowy: pytania do asystenta, kopiowanie, eksport dla Claude")
+
+                Button {
+                    analysisFor = item.id
+                } label: {
+                    Label(imports.analyzing.contains(item.id) ? "Analizuję…" : "Analiza",
+                          systemImage: "list.bullet.clipboard")
+                }
+                .buttonStyle(M3ButtonStyle(kind: item.analysis == nil ? .outlined : .tonal, compact: true))
+                .help("Claude Code: podsumowanie, zadania, decyzje i pytania na kolejną rozmowę")
 
                 Menu {
                     Button("Kopiuj Markdown") {
@@ -535,3 +552,6 @@ enum ImportPanel {
         for url in panel.urls { imports.enqueue(url) }
     }
 }
+
+/// `sheet(item:)` chce `Identifiable`.
+struct SheetID: Identifiable { let id: String }

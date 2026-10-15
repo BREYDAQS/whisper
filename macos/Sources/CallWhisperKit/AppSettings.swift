@@ -380,9 +380,6 @@ public final class AppSettings: ObservableObject {
     /// Model, którego używa nasłuch przy obecnym silniku.
     public var liveModel: String { asrBackend == .parakeetLocal ? parakeetModel : whisperModel }
 
-    /// Port serwera Parakeet na żywo; import whispera siedzi na +1.
-    public var parakeetPort: Int { whisperPort + 2 }
-
     /// Model whisper.cpp. `small` bije `large-v3-turbo` czterokrotnie przy tej
     /// samej jakości po polsku — stąd domyślny.
     public var whisperModel: String {

@@ -51,14 +51,16 @@ public actor SourcePipeline {
 
     // --- ścieżka whisper / Parakeet ---
     private let whisper: WhisperClient
-    private let parakeet: ParakeetClient
+    private let parakeet: ParakeetRecognizer?
 
     /// Ta sama transkrypcja przyrostowa dla obu silników; Parakeet nie zna
     /// promptu, więc kontekst i jakość go nie dotyczą.
     private func transcribe(_ pcm: [Float], quality: WhisperClient.Quality) async throws -> String {
-        backend == .parakeetLocal
-            ? try await parakeet.transcribe(pcm)
-            : try await whisper.transcribe(pcm, context: whisperPrompt, quality: quality)
+        if backend == .parakeetLocal {
+            guard let parakeet else { throw ParakeetRecognizer.RecognizerError.notInstalled }
+            return try await parakeet.transcribe(pcm)
+        }
+        return try await whisper.transcribe(pcm, context: whisperPrompt, quality: quality)
     }
 
     /// Ostatnie zdania rozmowy, podawane whisperowi jako `initial_prompt`.
@@ -153,7 +155,7 @@ public actor SourcePipeline {
 
     public let identifySpeakers: Bool
 
-    public init(source: AudioSource, backend: ASRBackend, whisperPort: Int = 8899, parakeetPort: Int = 8901,
+    public init(source: AudioSource, backend: ASRBackend, whisperPort: Int = 8899, parakeet: ParakeetRecognizer? = nil,
                 languageCode: String = "pl", identifySpeakers: Bool = false, vocabulary: String = "") {
         self.source = source
         self.vocabulary = String(Text.normalize(vocabulary).prefix(300))
@@ -168,7 +170,7 @@ public actor SourcePipeline {
             endpoint: URL(string: "http://127.0.0.1:\(whisperPort)")!,
             language: languageCode
         )
-        self.parakeet = ParakeetClient(port: parakeetPort)
+        self.parakeet = parakeet
     }
 
     public func start(locale: Locale,

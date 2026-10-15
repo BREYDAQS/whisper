@@ -41,7 +41,7 @@ public final class Recorder: ObservableObject {
     private var micCapture: MicrophoneCapture?
     private var ticker: Task<Void, Never>?
     private let whisperServer = WhisperServer()
-    private let parakeetServer = ParakeetServer()
+    private let parakeet = ParakeetRecognizer()
     private let downloader = ModelDownloader()
     /// Dźwięk systemu tej sesji na dysku — dla diaryzacji po rozmowie.
     private var sessionAudio: WavFileWriter?
@@ -135,7 +135,7 @@ public final class Recorder: ObservableObject {
             for source in sources {
                 let pipeline = SourcePipeline(source: source, backend: backend,
                                               whisperPort: settings.whisperPort,
-                                              parakeetPort: settings.parakeetPort,
+                                              parakeet: parakeet,
                                               languageCode: settings.languageCode,
                                               identifySpeakers: settings.identifySpeakers,
                                               // Nazwy z kontekstu projektu doklejamy same: plik
@@ -269,7 +269,7 @@ public final class Recorder: ObservableObject {
         }
     }
 
-    /// Silnik i model Parakeet (pobrane, gdy brak) i serwer z modelem w pamięci.
+    /// Silnik i model Parakeet (pobrane, gdy brak), model wczytany do pamięci.
     private func prepareParakeet() async -> Bool {
         guard let model = ModelDownloader.model(settings.parakeetModel), model.family == .parakeet else {
             lastError = "Nie znam modelu Parakeet \(settings.parakeetModel)."
@@ -289,8 +289,8 @@ public final class Recorder: ObservableObject {
                 }
             }
             refreshReadiness()
-            status = "Uruchamiam \(model.name)…"
-            try await parakeetServer.ensureRunning(model: model, port: settings.parakeetPort)
+            status = "Wczytuję \(model.name)…"
+            try await parakeet.load(model: model)
             return true
         } catch {
             lastError = error.localizedDescription
@@ -359,7 +359,7 @@ public final class Recorder: ObservableObject {
 
         // Zatrzymujemy tylko serwer, który sami podnieśliśmy.
         await whisperServer.stop()
-        await parakeetServer.stop()
+        await parakeet.unload()
         if bridgeStarted {
             await bridge.stop()
             bridgeStarted = false

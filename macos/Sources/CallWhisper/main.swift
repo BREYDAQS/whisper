@@ -165,20 +165,20 @@ func runListen(seconds: Double) async -> Int32 {
 /// w czasie rzeczywistym, tym samym silnikiem co w Ustawieniach. Sprawdza
 /// VAD, rundy przyrostowe i domykanie wypowiedzi bez przechwytywania dźwięku.
 func runPipeline(path: String) async -> Int32 {
-    let (backend, whisperModel, parakeetModel, whisperPort, parakeetPort, language) = await MainActor.run {
+    let (backend, whisperModel, parakeetModel, whisperPort, language) = await MainActor.run {
         let s = AppSettings.shared
-        return (s.asrBackend, s.whisperModel, s.parakeetModel, s.whisperPort, s.parakeetPort, s.languageCode)
+        return (s.asrBackend, s.whisperModel, s.parakeetModel, s.whisperPort, s.languageCode)
     }
     @Sendable func log(_ message: String) { FileHandle.standardError.write(Data("\(message)\n".utf8)) }
     let whisper = WhisperServer()
-    let parakeet = ParakeetServer()
+    let parakeet = ParakeetRecognizer()
     do {
         switch backend {
         case .parakeetLocal:
             guard let model = ModelDownloader.model(parakeetModel) else { log("nie znam \(parakeetModel)"); return 1 }
             if !Engines.isInstalled(.parakeetEngine) { try await Engines.install(.parakeetEngine) }
             try await ModelDownloader().download(model.id) { _ in }
-            try await parakeet.ensureRunning(model: model, port: parakeetPort)
+            try await parakeet.load(model: model)
         case .whisperLocal:
             try await whisper.ensureRunning(.init(model: whisperModel, port: whisperPort, language: language))
         case .appleSpeech:
@@ -187,7 +187,7 @@ func runPipeline(path: String) async -> Int32 {
         let pcm = try await MediaImport.decode(URL(fileURLWithPath: path))
         log("silnik: \(backend.label), \(pcm.count / 16_000) s audio")
         let pipeline = SourcePipeline(source: .system, backend: backend, whisperPort: whisperPort,
-                                      parakeetPort: parakeetPort, languageCode: language)
+                                      parakeet: parakeet, languageCode: language)
         let started = Date()
         try await pipeline.start(locale: Locale(identifier: language), onUpdate: { u in
             guard u.isFinal || CommandLine.arguments.contains("--parts") else { return }
@@ -206,10 +206,10 @@ func runPipeline(path: String) async -> Int32 {
         await pipeline.cancel()
     } catch {
         log(error.localizedDescription)
-        await whisper.stop(); await parakeet.stop()
+        await whisper.stop(); await parakeet.unload()
         return 2
     }
-    await whisper.stop(); await parakeet.stop()
+    await whisper.stop(); await parakeet.unload()
     return 0
 }
 

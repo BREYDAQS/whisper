@@ -17,7 +17,11 @@ let package = Package(
         .target(name: "CallWhisperCore"),
 
         // Warstwa platformy: przechwytywanie dźwięku, ASR, klient asystenta.
-        .target(name: "CallWhisperKit", dependencies: ["CallWhisperCore"]),
+        .target(name: "CallWhisperKit", dependencies: ["CallWhisperCore", "CSherpa"]),
+
+        // Parakeet w procesie: nakładka na C API sherpa-onnx ładowane `dlopen`
+        // (biblioteka jest pobierana przez aplikację, nie linkowana).
+        .target(name: "CSherpa"),
 
         // Aplikacja.
         .executableTarget(name: "CallWhisper", dependencies: ["CallWhisperKit"]),

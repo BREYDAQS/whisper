@@ -215,7 +215,7 @@ struct SettingsView: View {
                                 .tag(model.id)
                         }
                     }
-                    Text("Model zostaje w pamięci przez cały nasłuch (serwer sherpa-onnx). Szybszy od whispera, ale nie korzysta ze słownictwa rozmowy, a wersja v3 nie przyjmuje wyboru języka — rozpoznaje go sama.")
+                    Text("Model zostaje w pamięci aplikacji przez cały nasłuch (sherpa-onnx, bez serwera i portu). Szybszy od whispera, ale nie korzysta ze słownictwa rozmowy, a wersja v3 nie przyjmuje wyboru języka — rozpoznaje go sama.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }

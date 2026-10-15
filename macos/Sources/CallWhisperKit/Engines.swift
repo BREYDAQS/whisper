@@ -22,7 +22,7 @@ public enum Engines {
         case whisperServer = "whisper-server"
         case diarizer = "diarizer"
         case diarizationModels = "diarization-models"
-        /// `sherpa-onnx-offline` (import) i serwer WebSocket (na żywo) do modeli
+        /// `sherpa-onnx-offline` (import) i C API (na żywo, w procesie) do modeli
         /// Parakeet — ta sama paczka co diaryzacja.
         case parakeetEngine = "parakeet-engine"
 
@@ -64,8 +64,8 @@ public enum Engines {
             // Ten sam plik i suma co `.diarizer`, inna binarka z paczki.
             var asset = assets(.diarizer)[0]
             asset.members = [("\(sherpaDir)/bin/sherpa-onnx-offline", "sherpa/bin/sherpa-onnx-offline"),
-                             ("\(sherpaDir)/bin/sherpa-onnx-offline-websocket-server",
-                              "sherpa/bin/sherpa-onnx-offline-websocket-server"),
+                             ("\(sherpaDir)/lib/libsherpa-onnx-c-api.dylib",
+                              "sherpa/lib/libsherpa-onnx-c-api.dylib"),
                              ("\(sherpaDir)/lib/libonnxruntime.1.23.2.dylib", "sherpa/lib/libonnxruntime.1.23.2.dylib")]
             return [asset]
         case .whisperServer:
@@ -144,8 +144,8 @@ public enum Engines {
         firstExisting("sherpa/bin/sherpa-onnx-offline")
     }
 
-    public static var parakeetServer: URL? {
-        firstExisting("sherpa/bin/sherpa-onnx-offline-websocket-server")
+    public static var parakeetLibrary: URL? {
+        firstExisting("sherpa/lib/libsherpa-onnx-c-api.dylib")
     }
 
     public static var diarizationModels: (segmentation: URL, embedding: URL)? {
@@ -159,7 +159,7 @@ public enum Engines {
         case .whisperServer: return whisperServer != nil
         case .diarizer: return diarizer != nil
         case .diarizationModels: return diarizationModels != nil
-        case .parakeetEngine: return parakeetEngine != nil && parakeetServer != nil
+        case .parakeetEngine: return parakeetEngine != nil && parakeetLibrary != nil
         }
     }
 

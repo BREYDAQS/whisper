@@ -385,3 +385,20 @@ struct M3LinearProgress: View {
         }
     }
 }
+
+/// Wskaźnik liniowy M3 z wartością (import, pobieranie modelu).
+struct M3ProgressBar: View {
+    var value: Double
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(M3.color.secondaryContainer)
+                Capsule().fill(M3.color.primary)
+                    .frame(width: geo.size.width * min(1, max(0, value)))
+            }
+        }
+        .frame(height: 4)
+        .animation(.easeOut(duration: 0.2), value: value)
+    }
+}

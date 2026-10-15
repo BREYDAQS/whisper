@@ -1,6 +1,6 @@
 import Foundation
 
-public struct SessionMeta: Sendable {
+public struct SessionMeta: Sendable, Codable {
     public var title: String = ""
     public var source: String = ""
     public var url: String = ""

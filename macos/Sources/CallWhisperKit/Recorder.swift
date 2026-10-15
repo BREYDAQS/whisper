@@ -426,42 +426,19 @@ public final class Recorder: ObservableObject {
         status = "Gotowy"
     }
 
-    /// Import nagrania albo wideo (pomysł z whistlera). Wynik ląduje w tym
-    /// samym transkrypcie co rozmowa na żywo, więc eksport, kopiowanie
-    /// i pytania do asystenta działają bez zmian.
-    public func importFile(_ url: URL, speakers: Int? = nil) {
+    /// Transkrypt z biblioteki importów w oknie rozmowy — eksport, kopiowanie
+    /// i pytania do asystenta działają wtedy bez zmian.
+    public func show(meta: SessionMeta, segments: [Segment]) {
         guard !isRunning, !isProcessing else { return }
-        isProcessing = true
+        store = TranscriptStore(startedAt: meta.startedAt ?? nowMs())
+        answers = []
+        self.segments = segments
+        startedAt = meta.startedAt
+        importedMeta = meta
+        let speakers = Set(segments.map(\.speaker)).count
+        speakerCount = speakers > 1 ? speakers : 0
         lastError = nil
-        processingTask = Task { [weak self] in
-            guard let self else { return }
-            defer { self.isProcessing = false }
-            guard await self.prepareWhisper() else { return }
-            let options = MediaImport.Options(whisperPort: self.settings.whisperPort,
-                                              language: self.settings.languageCode,
-                                              diarize: self.settings.diarizeAfter, speakers: speakers)
-            do {
-                let result = try await MediaImport.run(url, options: options) { message in
-                    Task { @MainActor in self.status = message }
-                }
-                self.store = TranscriptStore(startedAt: result.meta.startedAt ?? nowMs())
-                self.answers = []
-                self.segments = result.segments
-                self.startedAt = result.meta.startedAt
-                self.importedMeta = result.meta
-                self.speakerCount = result.speakerCount
-                self.lastError = result.diarizationNote.map { "Bez podziału na głosy: \($0)" }
-                self.status = result.segments.isEmpty
-                    ? "W \(url.lastPathComponent) nie rozpoznano mowy"
-                    : "Zaimportowano \(url.lastPathComponent) · \(result.segments.count) wypowiedzi"
-            } catch is CancellationError {
-                self.status = "Import przerwany"
-            } catch {
-                self.lastError = error.localizedDescription
-                self.status = "Gotowy"
-            }
-            await self.whisperServer.stop()
-        }
+        status = "Z biblioteki: \(meta.title) · \(segments.count) wypowiedzi"
     }
 
     /// Czeka, aż skończy się praca po rozmowie (diaryzacja), żeby zapisany
@@ -596,7 +573,7 @@ public final class Recorder: ObservableObject {
         // Z obrazkiem samo pytanie może być puste — „co tu jest nie tak?"
         // bywa całą treścią, a reszta jest na zrzucie.
         let asked = question.isEmpty && image != nil ? "Co widzisz na tym obrazku?" : question
-        guard let prompt = buildPrompt(question: asked, segments: store.segments,
+        guard let prompt = buildPrompt(question: asked, segments: segments,
                                        title: settings.title,
                                        projectContext: settings.projectContext) else { return }
 

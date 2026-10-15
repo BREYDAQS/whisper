@@ -6,6 +6,7 @@ struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var obs: OBSLink
     @ObservedObject var updater: Updater
+    @ObservedObject var models: ModelStore
     @State private var probeResult: String?
     @State private var probing = false
     @State private var modelStatus: String = "sprawdzam…"
@@ -36,6 +37,8 @@ struct SettingsView: View {
         TabView {
             general.tabItem { Label("Ogólne", systemImage: "gear") }
             speech.tabItem { Label("Mowa", systemImage: "waveform") }
+            ModelsSettingsView(store: models, settings: settings)
+                .tabItem { Label("Modele", systemImage: "square.and.arrow.down.on.square") }
             assistantTab.tabItem { Label("Asystent", systemImage: "sparkles") }
         }
         .frame(width: 500)
@@ -211,7 +214,7 @@ struct SettingsView: View {
                             Text(model).tag(model)
                         }
                     }
-                    Text("`small` — 13,3 % błędnych słów po polsku, ~930 ms. `large-v3-turbo` schodzi do 10,0 %, ale kosztuje ~1,6 s na rundę i 1,6 GB pamięci.")
+                    Text("`small` — 13,3 % błędnych słów po polsku, ~930 ms. `large-v3-turbo` schodzi do 10,0 %, ale kosztuje ~1,6 s na rundę i 1,6 GB pamięci. Pozostałe modele pobierzesz w zakładce Modele.")
                         .font(.caption).foregroundStyle(.secondary)
 
                     TextField("Słownictwo rozmowy", text: Binding(

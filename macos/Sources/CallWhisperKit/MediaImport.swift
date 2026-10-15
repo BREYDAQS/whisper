@@ -12,16 +12,30 @@ import CallWhisperCore
 public enum MediaImport {
     public static let fileExtensions = ["mp4", "mov", "m4v", "m4a", "mp3", "wav", "aiff", "aif", "caf", "aac"]
 
+    public static let videoExtensions: Set<String> = ["mp4", "mov", "m4v"]
+
+    /// Czym transkrybować: działający `whisper-server` albo Parakeet z pliku.
+    public enum Engine: Sendable {
+        case whisper(port: Int)
+        case parakeet(SpeechModel)
+    }
+
+    /// Postęp: opis etapu i ułamek całości (0…1) do paska.
+    public struct Progress: Sendable {
+        public var message: String
+        public var fraction: Double
+    }
+
     public struct Options: Sendable {
-        public var whisperPort: Int
+        public var engine: Engine
         public var language: String
         /// Diaryzacja neuronowa po transkrypcji.
         public var diarize: Bool
         /// Znana liczba osób; `nil` = niech klastrowanie zdecyduje.
         public var speakers: Int?
 
-        public init(whisperPort: Int, language: String, diarize: Bool, speakers: Int? = nil) {
-            self.whisperPort = whisperPort; self.language = language
+        public init(engine: Engine, language: String, diarize: Bool, speakers: Int? = nil) {
+            self.engine = engine; self.language = language
             self.diarize = diarize; self.speakers = speakers
         }
     }
@@ -115,43 +129,54 @@ public enum MediaImport {
         return bounds
     }
 
-    /// Cały import: dekodowanie -> whisper -> (diaryzacja) -> segmenty.
+    /// Cały import: dekodowanie -> whisper/Parakeet -> (diaryzacja) -> segmenty.
     ///
     /// `whisper-server` ma już działać — uruchamia go wołający, bo to on wie,
     /// czy serwer jest jego.
     public static func run(_ url: URL, options: Options,
-                           progress: @escaping @Sendable (String) -> Void) async throws -> Result {
-        progress("Odczytuję dźwięk z \(url.lastPathComponent)…")
+                           progress: @escaping @Sendable (Progress) -> Void) async throws -> Result {
+        // Udział etapów w pasku: transkrypcja to większość czasu.
+        let asrShare = options.diarize ? 0.8 : 0.95
+        progress(Progress(message: "Odczytuję dźwięk z \(url.lastPathComponent)…", fraction: 0))
         let pcm = try await decode(url)
         let seconds = Double(pcm.count) / asrSampleRate
 
-        // Dwie minuty na kawałek: na `small` to kilka sekund inferencji, więc
-        // pasek postępu żyje, a przy okazji nie zbliżamy się do limitu czasu.
-        let rate = Int(asrSampleRate)
-        let bounds = chunkBounds(count: pcm.count, target: 120 * rate, window: 10 * rate, samples: pcm)
-        let client = WhisperClient(endpoint: URL(string: "http://127.0.0.1:\(options.whisperPort)")!,
-                                   language: options.language, timeout: 600)
-
         var texts: [TimedText] = []
-        var context = ""
-        for (index, range) in bounds.enumerated() {
-            try Task.checkCancellation()
-            progress(String(format: "Transkrybuję %@ — %d/%d (%.0f%%)", url.lastPathComponent,
-                            index + 1, bounds.count, Double(range.lowerBound) / Double(max(1, pcm.count)) * 100))
-            let offset = Double(range.lowerBound) / asrSampleRate
-            let part = try await client.transcribeSegments(Array(pcm[range]), context: context)
-            texts += part.map { TimedText(start: $0.start + offset, end: $0.end + offset, text: $0.text) }
-            // Ten sam trik, co na żywo: końcówka poprzedniego kawałka jako
-            // `prompt` prawie połowi błędy w nazwach własnych.
-            context = String(texts.map(\.text).joined(separator: " ").suffix(400))
+        switch options.engine {
+        case .whisper(let port):
+            // Dwie minuty na kawałek: na `small` to kilka sekund inferencji, więc
+            // pasek postępu żyje, a przy okazji nie zbliżamy się do limitu czasu.
+            let rate = Int(asrSampleRate)
+            let bounds = chunkBounds(count: pcm.count, target: 120 * rate, window: 10 * rate, samples: pcm)
+            let client = WhisperClient(endpoint: URL(string: "http://127.0.0.1:\(port)")!,
+                                       language: options.language, timeout: 600)
+            var context = ""
+            for (index, range) in bounds.enumerated() {
+                try Task.checkCancellation()
+                let done = Double(range.lowerBound) / Double(max(1, pcm.count))
+                progress(Progress(message: String(format: "Transkrybuję — %d/%d", index + 1, bounds.count),
+                                  fraction: 0.05 + done * (asrShare - 0.05)))
+                let offset = Double(range.lowerBound) / asrSampleRate
+                let part = try await client.transcribeSegments(Array(pcm[range]), context: context)
+                texts += part.map { TimedText(start: $0.start + offset, end: $0.end + offset, text: $0.text) }
+                // Ten sam trik, co na żywo: końcówka poprzedniego kawałka jako
+                // `prompt` prawie połowi błędy w nazwach własnych.
+                context = String(texts.map(\.text).joined(separator: " ").suffix(400))
+            }
+        case .parakeet(let model):
+            progress(Progress(message: "Transkrybuję (\(model.name))…", fraction: 0.05))
+            texts = try await Parakeet.transcribe(pcm, model: model) { done in
+                progress(Progress(message: String(format: "Transkrybuję (%@) — %.0f%%", model.name, done * 100),
+                                  fraction: 0.05 + done * (asrShare - 0.05)))
+            }
         }
 
         var turns: [SpeakerTurn] = []
         var note: String?
         if options.diarize && !texts.isEmpty {
             do {
-                try await NeuralDiarizer.ensureInstalled(onProgress: progress)
-                progress("Rozpoznaję głosy…")
+                try await NeuralDiarizer.ensureInstalled { progress(Progress(message: $0, fraction: asrShare)) }
+                progress(Progress(message: "Rozpoznaję głosy…", fraction: asrShare))
                 let wav = FileManager.default.temporaryDirectory
                     .appendingPathComponent("cw-import-\(UUID().uuidString).wav")
                 let writer = try WavFileWriter(url: wav)

@@ -56,16 +56,48 @@ co da się zrobić bez pytania, robi sama.
 Panel gotowości jest pod ikoną ✓ na pasku narzędzi i pokazuje się sam, gdy
 czegoś brakuje.
 
-Model można też pobrać z terminala:
+Wszystkie darmowe modele (jak w whistlerze) pobiera się i usuwa w
+**Ustawienia → Modele**: whisper `tiny`, `base`, `small`, `medium`,
+`large-v3-turbo`, `large-v3`, Parakeet TDT 0.6B v3 (25 języków z polskim)
+i Parakeet Unified EN oraz modele rozpoznawania głosów. Sumy SHA-256 są
+przypięte. Parakeet (przez `sherpa-onnx-offline`) działa tylko w imporcie
+plików — na żywo zostaje whisper. Można też z terminala:
 
 ```bash
 npm run mac:fetch-model small        # 465 MB, domyślny
 npm run mac:fetch-model large-v3-turbo
+npm run mac:fetch-model parakeet-tdt-0.6b-v3
 ```
 
 Pobieranie idzie przez `URLSessionDownloadTask`, a nie przez
 `URLSession.bytes` — ten drugi oddaje strumień bajt po bajcie i na 148 MB
 spalał 12 s czasu procesora na samą pętlę zamiast 1,3 s.
+
+### Import nagrań i wideo (biblioteka)
+
+Zakładka **Biblioteka** w szynie nawigacji — odpowiednik `VideoImportView`
+i `VideoLibraryView` z whistlera, ale bez ffmpeg (dekoduje AVFoundation):
+
+- pliki (mp4, mov, m4v, m4a, mp3, wav, aiff, caf, aac) z przycisku, menu,
+  upuszczone na okno albo ikonę w Docku trafiają do kolejki,
+- kopia ląduje w `~/Movies/call-whisper`, więc transkrypt i odtwarzacz
+  działają po przeniesieniu oryginału,
+- model (whisper albo Parakeet) i podział na głosy wybiera się per import,
+  brakujący model pobiera się sam,
+- import przerwany zamknięciem aplikacji rusza ponownie przy starcie
+  (najwyżej dwa podejścia),
+- odtwarzacz zsynchronizowany z transkryptem: klik w wypowiedź przewija,
+  bieżąca jest podświetlona,
+- **Zrzut klatki** zapisuje PNG do `~/Movies/call-whisper/klatki`
+  i dokleja go do eksportu Markdown,
+- „Otwórz w rozmowie" przenosi transkrypt do okna z asystentem.
+
+Importy chodzą w tle na osobnym `whisper-server` (port nasłuchu + 1), więc
+nie blokują rozmowy na żywo. Z terminala:
+
+```bash
+call-whisper --import nagranie.mp4 --model parakeet-tdt-0.6b-v3 --speakers auto
+```
 
 ### Czego nie udało się uprościć
 

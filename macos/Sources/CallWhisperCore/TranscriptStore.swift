@@ -3,7 +3,7 @@ import Foundation
 public let unknownSpeaker = "Nieznany"
 
 /// Jedna wypowiedź w transkrypcie.
-public struct Segment: Sendable, Equatable {
+public struct Segment: Sendable, Equatable, Codable {
     public var id: String
     public var speaker: String
     public var text: String

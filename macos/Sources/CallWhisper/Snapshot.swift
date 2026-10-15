@@ -15,30 +15,39 @@ func runSnapshot(directory: String, file: String?) async -> Int32 {
     NSApp.setActivationPolicy(.prohibited)
 
     let recorder = Recorder()
+    let imports = ImportCenter()
     if let file {
-        recorder.importFile(URL(fileURLWithPath: file))
-        while recorder.isProcessing { try? await Task.sleep(for: .milliseconds(200)) }
+        // Prawdziwy import do biblioteki — tak jak z okna.
+        let id = imports.enqueue(URL(fileURLWithPath: file))
+        while imports.item(id)?.status == .pending { try? await Task.sleep(for: .milliseconds(200)) }
+        if let t = imports.transcript(id) { recorder.show(meta: t.meta, segments: t.segments) }
     }
     recorder.refreshReadiness()
 
     let out = URL(fileURLWithPath: directory)
     try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
-    for (name, appearance) in [("jasny", NSAppearance.Name.aqua), ("ciemny", .darkAqua)] {
-        let view = MainView(recorder: recorder, settings: .shared, overlay: OverlayController(),
-                            meetings: MeetingWatcher(), updater: Updater(recorder: recorder))
-            .frame(width: 980, height: 680)
-        let host = NSHostingView(rootView: view)
-        host.frame = NSRect(x: 0, y: 0, width: 980, height: 680)
-        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
-        window.appearance = NSAppearance(named: appearance)
-        window.contentView = host
-        host.layoutSubtreeIfNeeded()
-        try? await Task.sleep(for: .milliseconds(600))
-        guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return 1 }
-        host.cacheDisplay(in: host.bounds, to: rep)
-        let path = out.appendingPathComponent("okno-\(name).png")
-        try? rep.representation(using: .png, properties: [:])?.write(to: path)
-        print(path.path)
+    let screens = [("okno", false), ("biblioteka", true)]
+    for (screen, library) in screens {
+        for (name, appearance) in [("jasny", NSAppearance.Name.aqua), ("ciemny", .darkAqua)] {
+            // Biblioteka: ta sama prośba, której używa import z Docka.
+            if library { imports.focusRequest = imports.items.first?.id }
+            let view = MainView(recorder: recorder, settings: .shared, overlay: OverlayController(),
+                                meetings: MeetingWatcher(), updater: Updater(recorder: recorder),
+                                imports: imports, models: .shared)
+                .frame(width: 980, height: 680)
+            let host = NSHostingView(rootView: view)
+            host.frame = NSRect(x: 0, y: 0, width: 980, height: 680)
+            let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+            window.appearance = NSAppearance(named: appearance)
+            window.contentView = host
+            host.layoutSubtreeIfNeeded()
+            try? await Task.sleep(for: .milliseconds(600))
+            guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return 1 }
+            host.cacheDisplay(in: host.bounds, to: rep)
+            let path = out.appendingPathComponent("\(screen)-\(name).png")
+            try? rep.representation(using: .png, properties: [:])?.write(to: path)
+            print(path.path)
+        }
     }
     await snapshotNotch(into: out)
     return 0

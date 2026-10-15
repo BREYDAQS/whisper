@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     let notch = NotchIslandController()
     let obs = OBSLink()
     lazy var updater = Updater(recorder: recorder)
+    let imports = ImportCenter()
     private let settings = AppSettings.shared
     /// Nasłuch włączony przez wykrywanie — tylko taki wolno nam samym zatrzymać.
     private var autoStarted = false
@@ -48,6 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         syncOBS()
         syncNotch()
         updater.start()
+        // Importy przerwane zamknięciem aplikacji (jak w whistlerze).
+        imports.resumePending()
     }
 
     /// Wyspa w notchu włączana i wyłączana z Ustawień bez restartu.
@@ -89,9 +92,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// Plik upuszczony na ikonę w Docku albo otwarty z Findera
     /// („Otwórz za pomocą") trafia prosto do importu.
     func application(_ application: NSApplication, open urls: [URL]) {
-        guard let url = urls.first(where: { MediaImport.fileExtensions.contains($0.pathExtension.lowercased()) })
-        else { return }
-        recorder.importFile(url)
+        for url in urls where MediaImport.fileExtensions.contains(url.pathExtension.lowercased()) {
+            imports.enqueue(url)
+        }
     }
 
     func syncMeetingDetection() {
@@ -164,7 +167,7 @@ struct CallWhisperApp: App {
     var body: some Scene {
         Window("call-whisper", id: "main") {
             MainView(recorder: recorder, settings: settings, overlay: overlay, meetings: delegate.meetings,
-                     updater: delegate.updater)
+                     updater: delegate.updater, imports: delegate.imports, models: .shared)
                 .frame(minWidth: 720, minHeight: 500)
                 .onChange(of: settings.followOBS) { _, _ in delegate.syncOBS() }
         }
@@ -175,13 +178,14 @@ struct CallWhisperApp: App {
         // Ikona w pasku menu — odpowiednik ikony rozszerzenia z wersji webowej.
         // Licznik pokazuje liczbę zarejestrowanych wypowiedzi, kropka nasłuch.
         MenuBarExtra {
-            MenuBarView(recorder: recorder, settings: settings, overlay: overlay, meetings: delegate.meetings)
+            MenuBarView(recorder: recorder, settings: settings, overlay: overlay, meetings: delegate.meetings,
+                        imports: delegate.imports)
         } label: {
             MenuBarLabel(recorder: recorder)
         }
 
         Settings {
-            SettingsView(settings: settings, obs: delegate.obs, updater: delegate.updater)
+            SettingsView(settings: settings, obs: delegate.obs, updater: delegate.updater, models: .shared)
                 .tint(M3.color.primary)
                 .onChange(of: settings.detectMeetings) { _, _ in delegate.syncMeetingDetection() }
                 .onChange(of: settings.followOBS) { _, _ in delegate.syncOBS() }
@@ -210,6 +214,7 @@ struct MenuBarView: View {
     @ObservedObject var settings: AppSettings
     var overlay: OverlayController
     @ObservedObject var meetings: MeetingWatcher
+    var imports: ImportCenter
 
     var body: some View {
         Button(recorder.isRunning ? "Zatrzymaj" : "Słuchaj rozmowy") {
@@ -228,8 +233,7 @@ struct MenuBarView: View {
 
         Divider()
 
-        Button("Importuj nagranie…") { ImportPanel.run(recorder) }
-            .disabled(recorder.isRunning || recorder.isProcessing)
+        Button("Importuj nagranie…") { ImportPanel.run(imports) }
 
         Button("Kopiuj Markdown") {
             NSPasteboard.general.clearContents()

@@ -203,10 +203,10 @@ func runAsk(_ question: String) async -> Int32 {
     }
 }
 
-/// `call-whisper --fetch-model <nazwa>` — pobiera model whispera z postępem.
+/// `call-whisper --fetch-model <nazwa>` — pobiera model mowy (whisper, Parakeet) z postępem.
 func runFetchModel(_ model: String) async -> Int32 {
     if ModelDownloader.isInstalled(model) {
-        print("Model \(model) już jest w \(WhisperServer.modelsDirectory.path)")
+        print("Model \(model) już jest w \((ModelDownloader.model(model).map(ModelDownloader.location) ?? WhisperServer.modelURL(model)).path)")
         return 0
     }
     let downloader = ModelDownloader()
@@ -218,8 +218,7 @@ func runFetchModel(_ model: String) async -> Int32 {
             FileHandle.standardError.write(Data(line.utf8))
         }
         FileHandle.standardError.write(Data("\n".utf8))
-        let size = (try? FileManager.default.attributesOfItem(
-            atPath: WhisperServer.modelURL(model).path)[.size] as? Int64) ?? 0
+        let size = ModelDownloader.model(model)?.bytes ?? 0
         print(String(format: "Pobrano %@ — %.1f MB", model, Double(size) / 1e6))
         return 0
     } catch {
@@ -358,16 +357,21 @@ func runDiarize(path: String, speakers: Int?) async -> Int32 {
     }
 }
 
-/// `call-whisper --import <nagranie|wideo> [--speakers auto|N]` —
+/// `call-whisper --import <nagranie|wideo> [--speakers auto|N] [--model id]` —
 /// import z terminala, Markdown na stdout. Odpowiednik `openwhispr-video
 /// import` z whistlera, tyle że bez działającej aplikacji w tle.
-func runImport(path: String, diarize: Bool, speakers: Int?) async -> Int32 {
-    let (model, port, languageCode) = await MainActor.run {
-        (AppSettings.shared.whisperModel, AppSettings.shared.whisperPort, AppSettings.shared.languageCode)
+func runImport(path: String, diarize: Bool, speakers: Int?, model: String?) async -> Int32 {
+    let (configured, port, languageCode) = await MainActor.run {
+        (AppSettings.shared.importModel, AppSettings.shared.whisperPort, AppSettings.shared.languageCode)
     }
+    let model = model ?? configured
     @Sendable func log(_ message: String) { FileHandle.standardError.write(Data("\(message)\n".utf8)) }
 
-    if WhisperServer.locateBinary() == nil {
+    let parakeet = ModelDownloader.model(model).flatMap { $0.family == .parakeet ? $0 : nil }
+    if parakeet != nil, !Engines.isInstalled(.parakeetEngine) {
+        log("pobieram silnik Parakeet…")
+        do { try await Engines.install(.parakeetEngine) } catch { log(error.localizedDescription); return 1 }
+    } else if parakeet == nil, WhisperServer.locateBinary() == nil {
         log("pobieram silnik mowy…")
         do { try await Engines.install(.whisperServer) } catch { log(error.localizedDescription); return 1 }
     }
@@ -376,18 +380,24 @@ func runImport(path: String, diarize: Bool, speakers: Int?) async -> Int32 {
         do { try await ModelDownloader().download(model) { _ in } } catch { log(error.localizedDescription); return 1 }
     }
     let server = WhisperServer()
-    do {
-        try await server.ensureRunning(.init(model: model, port: port, language: languageCode))
-    } catch {
-        log(error.localizedDescription)
-        return 1
+    let engine: MediaImport.Engine
+    if let parakeet {
+        engine = .parakeet(parakeet)
+    } else {
+        do {
+            try await server.ensureRunning(.init(model: model, port: port, language: languageCode))
+        } catch {
+            log(error.localizedDescription)
+            return 1
+        }
+        engine = .whisper(port: port)
     }
 
     let started = Date()
     do {
         let result = try await MediaImport.run(URL(fileURLWithPath: path),
-                                               options: .init(whisperPort: port, language: languageCode,
-                                                              diarize: diarize, speakers: speakers)) { log($0) }
+                                               options: .init(engine: engine, language: languageCode,
+                                                              diarize: diarize, speakers: speakers)) { log($0.message) }
         await server.stop()
         if let note = result.diarizationNote { log("bez podziału na głosy: \(note)") }
         log(String(format: "gotowe w %.1f s: %d wypowiedzi, %d głosów", Date().timeIntervalSince(started),
@@ -422,7 +432,7 @@ if let path = flagValue("--diarize") {
 if let path = flagValue("--import") {
     // `--speakers auto` włącza diaryzację bez podawania liczby osób.
     exit(await runImport(path: path, diarize: flagValue("--speakers") != nil,
-                         speakers: flagValue("--speakers").flatMap(Int.init)))
+                         speakers: flagValue("--speakers").flatMap(Int.init), model: flagValue("--model")))
 }
 if arguments.contains("--ask-seq") { exit(await runAskSequence()) }
 if let i = arguments.firstIndex(of: "--ask-image"), arguments.count > i + 2 {

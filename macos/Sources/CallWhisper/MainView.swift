@@ -13,7 +13,13 @@ struct MainView: View {
     var overlay: OverlayController
     @ObservedObject var meetings: MeetingWatcher
     @ObservedObject var updater: Updater
+    @ObservedObject var imports: ImportCenter
+    @ObservedObject var models: ModelStore
 
+    /// Co pokazuje okno: rozmowa z asystentem albo biblioteka importów.
+    enum Screen { case live, library }
+    @State private var screen: Screen = .live
+    @State private var librarySelection: String?
     @State private var manualQuestion = ""
     @State private var dropTargeted = false
     @State private var exportingForClaude = false
@@ -43,11 +49,18 @@ struct MainView: View {
                         .padding(.trailing, 16)
                         .padding(.bottom, 12)
                 }
-                HStack(spacing: 12) {
-                    transcriptCard
-                        .frame(minWidth: 340, maxWidth: .infinity)
-                    assistantCard
-                        .frame(minWidth: 300, idealWidth: 380, maxWidth: 440)
+                Group {
+                    if screen == .library {
+                        ImportView(imports: imports, models: models, settings: settings, recorder: recorder,
+                                   selection: $librarySelection, onOpen: { screen = .live })
+                    } else {
+                        HStack(spacing: 12) {
+                            transcriptCard
+                                .frame(minWidth: 340, maxWidth: .infinity)
+                            assistantCard
+                                .frame(minWidth: 300, idealWidth: 380, maxWidth: 440)
+                        }
+                    }
                 }
                 .padding(.trailing, 16)
                 .frame(maxHeight: .infinity)
@@ -57,7 +70,8 @@ struct MainView: View {
         .background(M3.color.page)
         .tint(M3.color.primary)
         .sheet(isPresented: $showSetup) { SetupView(recorder: recorder) }
-        .onAppear { paste.start { attachment = $0 } }
+        .onAppear { paste.start { attachment = $0 }; showRequested() }
+        .onChange(of: imports.focusRequest) { _, _ in showRequested() }
         .onDisappear { paste.stop() }
         .task {
             // Braki pokazujemy od razu po otwarciu, a nie dopiero komunikatem
@@ -67,6 +81,14 @@ struct MainView: View {
         }
     }
 
+    /// Nowy import (z panelu, Docka, menu) pokazuje się od razu w bibliotece.
+    private func showRequested() {
+        guard let id = imports.focusRequest else { return }
+        imports.focusRequest = nil
+        librarySelection = id
+        screen = .library
+    }
+
     // MARK: - górny pasek
 
     private var topAppBar: some View {
@@ -74,7 +96,7 @@ struct MainView: View {
             Image(systemName: "waveform.circle.fill")
                 .font(.system(size: 22))
                 .foregroundStyle(M3.color.primary)
-            Text(recorder.importedMeta?.title ?? "call-whisper")
+            Text(screen == .library ? "Biblioteka importów" : (recorder.importedMeta?.title ?? "call-whisper"))
                 .font(M3.type.titleLarge)
                 .foregroundStyle(M3.color.onSurface)
                 .lineLimit(1)
@@ -92,16 +114,32 @@ struct MainView: View {
     private var navigationRail: some View {
         VStack(spacing: 12) {
             Button {
-                if recorder.isProcessing { recorder.cancelProcessing() } else { ImportPanel.run(recorder) }
+                screen = .live
+            } label: {
+                Label("Rozmowa", systemImage: "waveform")
+            }
+            .buttonStyle(M3RailButtonStyle(selected: screen == .live))
+            .help("Transkrypt na żywo i podpowiedzi")
+
+            Button {
+                screen = .library
+            } label: {
+                Label(imports.activeID == nil ? "Biblioteka" : "Importuję",
+                      systemImage: imports.activeID == nil ? "film.stack" : "arrow.down.circle.dotted")
+            }
+            .buttonStyle(M3RailButtonStyle(selected: screen == .library))
+            .help("Zaimportowane nagrania i wideo: odtwarzacz, transkrypt, klatki")
+
+            Button {
+                if recorder.isProcessing { recorder.cancelProcessing() } else { ImportPanel.run(imports) }
             } label: {
                 Label(recorder.isProcessing ? "Przerwij" : "Importuj",
                       systemImage: recorder.isProcessing ? "xmark" : "square.and.arrow.down")
             }
             .buttonStyle(M3RailButtonStyle())
-            .disabled(recorder.isRunning)
             .help(recorder.isProcessing
-                  ? "Przerwij import albo rozpoznawanie głosów"
-                  : "Transkrybuj nagranie albo wideo (mp4, mov, m4a, mp3, wav). Można też upuścić plik na transkrypt.")
+                  ? "Przerwij rozpoznawanie głosów"
+                  : "Transkrybuj nagranie albo wideo (\(MediaImport.fileExtensions.joined(separator: ", "))). Można też upuścić plik na transkrypt.")
 
             // Podpowiedzi bywają hałasem (film, monolog), więc wyłącznik musi
             // być pod ręką. Wariant „selected" pokazuje stan.
@@ -236,14 +274,9 @@ struct MainView: View {
                     .background(M3.color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: M3.shape.large))
             }
         }
-        // Upuszczenie nagrania albo wideo na transkrypt = import.
+        // Upuszczenie nagrania albo wideo na transkrypt = import do biblioteki.
         .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
-            guard !recorder.isRunning, !recorder.isProcessing, let provider = providers.first else { return false }
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                guard let url, MediaImport.fileExtensions.contains(url.pathExtension.lowercased()) else { return }
-                Task { @MainActor in recorder.importFile(url) }
-            }
-            return true
+            ImportDrop.handle(providers, imports: imports)
         }
     }
 
@@ -269,7 +302,7 @@ struct MainView: View {
                 .frame(maxWidth: 340)
             if !recorder.isRunning && !recorder.isProcessing {
                 Button {
-                    ImportPanel.run(recorder)
+                    ImportPanel.run(imports)
                 } label: {
                     Label("Importuj nagranie", systemImage: "square.and.arrow.down")
                 }
@@ -566,6 +599,16 @@ struct MainView: View {
                         .scaleEffect(0.85)
                 }
                 Spacer()
+                if screen == .live, let progress = imports.progress {
+                    Button {
+                        screen = .library
+                    } label: {
+                        Label(String(format: "Import %.0f%%", progress.fraction * 100), systemImage: "film.stack")
+                            .font(M3.type.labelMedium).foregroundStyle(M3.color.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(progress.message)
+                }
                 updateBadge
                 if let copiedMessage {
                     Label(copiedMessage, systemImage: "checkmark")
@@ -848,20 +891,5 @@ struct AnswerCard: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(M3.color.cardInset, in: RoundedRectangle(cornerRadius: M3.shape.medium))
-    }
-}
-
-/// Wybór pliku do importu: wspólny dla okna i menu w pasku.
-@MainActor
-enum ImportPanel {
-    static func run(_ recorder: Recorder) {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = MediaImport.fileExtensions.compactMap { UTType(filenameExtension: $0) }
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.message = "Wybierz nagranie albo wideo do transkrypcji"
-        NSApp.activate(ignoringOtherApps: true)
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        recorder.importFile(url)
     }
 }

@@ -117,6 +117,7 @@ public final class AppSettings: ObservableObject {
         case asrBackend, whisperModel, whisperPort, autoStartWhisper, identifySpeakers
         case diarizeAfter, detectMeetings, autoStartOnMeeting, followOBS, whisperVocabulary
         case notchIsland, autoUpdate
+        case importModel, importDiarize, importSpeakers
     }
 
     /// Domyślny język mowy bierzemy z systemu, a nie na sztywno — inaczej
@@ -170,6 +171,9 @@ public final class AppSettings: ObservableObject {
             Key.followOBS.rawValue: true,
             Key.notchIsland.rawValue: true,
             Key.autoUpdate.rawValue: true,
+            Key.importModel.rawValue: "small",
+            Key.importDiarize.rawValue: true,
+            Key.importSpeakers.rawValue: 0,
         ])
     }
 
@@ -313,6 +317,25 @@ public final class AppSettings: ObservableObject {
     public var autoUpdate: Bool {
         get { get(.autoUpdate, true) }
         set { set(.autoUpdate, newValue) }
+    }
+
+    /// Model do importu plików — może być wolniejszy niż na żywo, bo nikt
+    /// nie czeka w rozmowie. Także Parakeet.
+    public var importModel: String {
+        get { get(.importModel, "small") }
+        set { set(.importModel, newValue) }
+    }
+
+    /// Podział na głosy przy imporcie. Domyślnie tak, jak w whistlerze.
+    public var importDiarize: Bool {
+        get { get(.importDiarize, true) }
+        set { set(.importDiarize, newValue) }
+    }
+
+    /// Znana liczba osób w importowanym nagraniu; 0 = wykryj.
+    public var importSpeakers: Int {
+        get { get(.importSpeakers, 0) }
+        set { set(.importSpeakers, newValue) }
     }
 
     /// Zaczynaj nasłuch sam, gdy wykryjesz rozmowę, i kończ, gdy się skończy.

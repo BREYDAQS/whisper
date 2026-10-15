@@ -22,12 +22,15 @@ public enum Engines {
         case whisperServer = "whisper-server"
         case diarizer = "diarizer"
         case diarizationModels = "diarization-models"
+        /// `sherpa-onnx-offline` do modeli Parakeet — ta sama paczka co diaryzacja.
+        case parakeetEngine = "parakeet-engine"
 
         public var label: String {
             switch self {
             case .whisperServer: return "Silnik mowy (whisper-server)"
             case .diarizer: return "Silnik diaryzacji (sherpa-onnx)"
             case .diarizationModels: return "Modele rozpoznawania głosów"
+            case .parakeetEngine: return "Silnik Parakeet (sherpa-onnx)"
             }
         }
     }
@@ -56,6 +59,12 @@ public enum Engines {
 
     static func assets(_ component: Component) -> [Asset] {
         switch component {
+        case .parakeetEngine:
+            // Ten sam plik i suma co `.diarizer`, inna binarka z paczki.
+            var asset = assets(.diarizer)[0]
+            asset.members = [("\(sherpaDir)/bin/sherpa-onnx-offline", "sherpa/bin/sherpa-onnx-offline"),
+                             ("\(sherpaDir)/lib/libonnxruntime.1.23.2.dylib", "sherpa/lib/libonnxruntime.1.23.2.dylib")]
+            return [asset]
         case .whisperServer:
             let sha = arch == "arm64"
                 ? "6a5f794e42549d61e7b46e1c1f296f05ec6569bfcb81b7e39c14860021f477de"
@@ -128,6 +137,10 @@ public enum Engines {
         firstExisting("sherpa/bin/sherpa-onnx-offline-speaker-diarization")
     }
 
+    public static var parakeetEngine: URL? {
+        firstExisting("sherpa/bin/sherpa-onnx-offline")
+    }
+
     public static var diarizationModels: (segmentation: URL, embedding: URL)? {
         guard let seg = firstExisting("models/segmentation.onnx"),
               let emb = firstExisting("models/campplus.onnx") else { return nil }
@@ -139,6 +152,25 @@ public enum Engines {
         case .whisperServer: return whisperServer != nil
         case .diarizer: return diarizer != nil
         case .diarizationModels: return diarizationModels != nil
+        case .parakeetEngine: return parakeetEngine != nil
+        }
+    }
+
+    /// Usuwa komponent pobrany do Application Support. Wbudowanych w `.app`
+    /// nie ruszamy. Wspólnej biblioteki onnxruntime nie kasujemy, dopóki
+    /// używa jej druga binarka sherpa.
+    public static func uninstall(_ component: Component) throws {
+        let shared = "sherpa/lib/libonnxruntime.1.23.2.dylib"
+        let otherSherpa: Component? = component == .diarizer ? .parakeetEngine
+            : component == .parakeetEngine ? .diarizer : nil
+        let keepShared = otherSherpa.map { other in
+            assets(other).flatMap(\.members).contains {
+                $0.to != shared && FileManager.default.fileExists(atPath: supportDirectory.appendingPathComponent($0.to).path)
+            }
+        } ?? false
+        for member in assets(component).flatMap(\.members) where !(keepShared && member.to == shared) {
+            let target = supportDirectory.appendingPathComponent(member.to)
+            if FileManager.default.fileExists(atPath: target.path) { try FileManager.default.removeItem(at: target) }
         }
     }
 

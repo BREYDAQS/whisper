@@ -8,10 +8,14 @@ public enum ASRBackend: String, Sendable, CaseIterable {
     /// `SpeechAnalyzer` z macOS 26. Szybszy i bez serwera, ale 30 języków
     /// i **żadnego polskiego**.
     case appleSpeech
+    /// NVIDIA Parakeet przez serwer sherpa-onnx. Zna polski, jest szybszy od
+    /// whispera, ale nie przyjmuje słownictwa ani kontekstu rozmowy.
+    case parakeetLocal
 
     public var label: String {
         switch self {
         case .whisperLocal: return "whisper.cpp (lokalnie)"
+        case .parakeetLocal: return "Parakeet (lokalnie)"
         case .appleSpeech:  return "Rozpoznawanie Apple (bez polskiego)"
         }
     }
@@ -45,8 +49,17 @@ public actor SourcePipeline {
     // --- ścieżka Apple ---
     private let recognizer = SpeechRecognizer()
 
-    // --- ścieżka whisper ---
+    // --- ścieżka whisper / Parakeet ---
     private let whisper: WhisperClient
+    private let parakeet: ParakeetClient
+
+    /// Ta sama transkrypcja przyrostowa dla obu silników; Parakeet nie zna
+    /// promptu, więc kontekst i jakość go nie dotyczą.
+    private func transcribe(_ pcm: [Float], quality: WhisperClient.Quality) async throws -> String {
+        backend == .parakeetLocal
+            ? try await parakeet.transcribe(pcm)
+            : try await whisper.transcribe(pcm, context: whisperPrompt, quality: quality)
+    }
 
     /// Ostatnie zdania rozmowy, podawane whisperowi jako `initial_prompt`.
     ///
@@ -140,7 +153,7 @@ public actor SourcePipeline {
 
     public let identifySpeakers: Bool
 
-    public init(source: AudioSource, backend: ASRBackend, whisperPort: Int = 8899,
+    public init(source: AudioSource, backend: ASRBackend, whisperPort: Int = 8899, parakeetPort: Int = 8901,
                 languageCode: String = "pl", identifySpeakers: Bool = false, vocabulary: String = "") {
         self.source = source
         self.vocabulary = String(Text.normalize(vocabulary).prefix(300))
@@ -155,6 +168,7 @@ public actor SourcePipeline {
             endpoint: URL(string: "http://127.0.0.1:\(whisperPort)")!,
             language: languageCode
         )
+        self.parakeet = ParakeetClient(port: parakeetPort)
     }
 
     public func start(locale: Locale,
@@ -170,7 +184,7 @@ public actor SourcePipeline {
                 Task { await self.handleApple(transcript) }
             }, onError: { error in onError(error) })
 
-        case .whisperLocal:
+        case .whisperLocal, .parakeetLocal:
             diarizer.onTurnStart = { [weak self] startMs in
                 guard let self else { return }
                 Task { await self.openUtterance(at: startMs) }
@@ -309,7 +323,7 @@ public actor SourcePipeline {
     /// zamiast po jego końcu.
     private func runIncremental(_ pcm: [Float], key: String, startMs: Double) async {
         do {
-            let text = try await whisper.transcribe(pcm, context: whisperPrompt, quality: .fast)
+            let text = try await transcribe(pcm, quality: .fast)
             trace("part -> \"\(text)\"")
             // Wypowiedź mogła się w międzyczasie domknąć — wynik dotyczy wtedy
             // czegoś, czego już nie ma, i nie wolno go nikomu przypisać.
@@ -365,7 +379,7 @@ public actor SourcePipeline {
             to: Swift.min(turn.endMs + padMs, u.startMs + maxUtteranceMs)
         ), !pcm.isEmpty {
             do {
-                let final = try await whisper.transcribe(pcm, context: whisperPrompt, quality: .accurate)
+                let final = try await transcribe(pcm, quality: .accurate)
                 trace("final -> \"\(final)\"")
                 if !final.isEmpty { text = final }
             } catch {

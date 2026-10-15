@@ -70,6 +70,15 @@ public actor WhisperServer {
     nonisolated(unsafe) private static var children: Set<pid_t> = []
     private static let childrenLock = NSLock()
 
+    /// Także serwer Parakeet — ma zgasnąć przy wyjściu tak samo.
+    static func registerChild(_ pid: pid_t) {
+        _ = childrenLock.withLock { children.insert(pid) }
+    }
+
+    static func unregisterChild(_ pid: pid_t) {
+        _ = childrenLock.withLock { children.remove(pid) }
+    }
+
     /// Gasi serwery uruchomione przez ten proces. Do wywołania przy wyjściu.
     public static func terminateChildren() {
         childrenLock.withLock {
@@ -105,7 +114,8 @@ public actor WhisperServer {
             let parts = line.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
             guard parts.count == 3, let pid = pid_t(parts[0]), parts[1] == "1" else { continue }
             let path = String(parts[2])
-            guard path.hasSuffix("/whisper-server"), path.lowercased().contains("call-whisper") else { continue }
+            guard path.hasSuffix("/whisper-server") || path.hasSuffix("/sherpa-onnx-offline-websocket-server"),
+                  path.lowercased().contains("call-whisper") else { continue }
             if kill(pid, SIGTERM) == 0 { killed += 1 }
         }
         return killed

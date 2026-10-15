@@ -206,6 +206,20 @@ struct SettingsView: View {
                 }
             }
 
+            if settings.asrBackend == .parakeetLocal {
+                Section("Parakeet") {
+                    Picker("Model", selection: Binding(
+                        get: { settings.parakeetModel }, set: { settings.parakeetModel = $0 })) {
+                        ForEach(ModelDownloader.catalog.filter { $0.family == .parakeet }) { model in
+                            Text(ModelDownloader.isInstalled(model.id) ? model.name : "\(model.name) — pobierze się")
+                                .tag(model.id)
+                        }
+                    }
+                    Text("Model zostaje w pamięci przez cały nasłuch (serwer sherpa-onnx). Szybszy od whispera, ale nie korzysta ze słownictwa rozmowy, a wersja v3 nie przyjmuje wyboru języka — rozpoznaje go sama.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
             if settings.asrBackend == .whisperLocal {
                 Section("whisper.cpp") {
                     Picker("Model", selection: Binding(

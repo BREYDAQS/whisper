@@ -37,6 +37,7 @@ public final class Recorder: ObservableObject {
     private var micCapture: MicrophoneCapture?
     private var ticker: Task<Void, Never>?
     private let whisperServer = WhisperServer()
+    private let parakeetServer = ParakeetServer()
     private let downloader = ModelDownloader()
     /// Dźwięk systemu tej sesji na dysku — dla diaryzacji po rozmowie.
     private var sessionAudio: WavFileWriter?
@@ -52,7 +53,7 @@ public final class Recorder: ObservableObject {
     @Published public private(set) var readiness = Readiness(checks: [])
 
     public func refreshReadiness() {
-        readiness = Readiness.check(model: settings.whisperModel, backend: settings.assistantBackend,
+        readiness = Readiness.check(model: settings.liveModel, backend: settings.assistantBackend,
                                     diarize: settings.diarizeAfter)
     }
     private var askTasks: [String: Task<Void, Never>] = [:]
@@ -84,6 +85,8 @@ public final class Recorder: ObservableObject {
         switch backend {
         case .whisperLocal:
             guard await prepareWhisper() else { return }
+        case .parakeetLocal:
+            guard await prepareParakeet() else { return }
         case .appleSpeech:
             guard await prepareAppleSpeech() else { return }
         }
@@ -126,6 +129,7 @@ public final class Recorder: ObservableObject {
             for source in sources {
                 let pipeline = SourcePipeline(source: source, backend: backend,
                                               whisperPort: settings.whisperPort,
+                                              parakeetPort: settings.parakeetPort,
                                               languageCode: settings.languageCode,
                                               identifySpeakers: settings.identifySpeakers,
                                               // Nazwy z kontekstu projektu doklejamy same: plik
@@ -181,9 +185,11 @@ public final class Recorder: ObservableObject {
         // Język w statusie celowo: cicha rozbieżność między zapisanym językiem
         // a tym, czego oczekuje użytkownik, kosztowała już jedną sesję debugowania
         // (whisper dostawał `language=en` i tłumaczył polski na angielski).
-        let engine = backend == .whisperLocal
-            ? "whisper \(settings.whisperModel) · \(settings.languageCode)"
-            : "Apple · \(settings.languageCode)"
+        let engine = switch backend {
+        case .whisperLocal: "whisper \(settings.whisperModel) · \(settings.languageCode)"
+        case .parakeetLocal: ModelDownloader.model(settings.parakeetModel)?.name ?? settings.parakeetModel
+        case .appleSpeech: "Apple · \(settings.languageCode)"
+        }
         let heard = sources.map { $0 == .system ? "system" : "mikrofon" }.joined(separator: " + ")
         status = "Słucham: \(heard) · \(engine)"
         if obsSession { status += " · OBS nagrywa" }
@@ -257,6 +263,36 @@ public final class Recorder: ObservableObject {
         }
     }
 
+    /// Silnik i model Parakeet (pobrane, gdy brak) i serwer z modelem w pamięci.
+    private func prepareParakeet() async -> Bool {
+        guard let model = ModelDownloader.model(settings.parakeetModel), model.family == .parakeet else {
+            lastError = "Nie znam modelu Parakeet \(settings.parakeetModel)."
+            return false
+        }
+        do {
+            if !Engines.isInstalled(.parakeetEngine) {
+                try await Engines.install(.parakeetEngine) { [weak self] fraction in
+                    Task { @MainActor in self?.status = "Pobieram silnik Parakeet — \(Int(fraction * 100))%" }
+                }
+            }
+            if !ModelDownloader.isInstalled(model.id) {
+                try await downloader.download(model.id) { [weak self] p in
+                    Task { @MainActor in
+                        self?.status = String(format: "Pobieram model %@ — %.0f%%", model.name, p.fraction * 100)
+                    }
+                }
+            }
+            refreshReadiness()
+            status = "Uruchamiam \(model.name)…"
+            try await parakeetServer.ensureRunning(model: model, port: settings.parakeetPort)
+            return true
+        } catch {
+            lastError = error.localizedDescription
+            status = "Gotowy"
+            return false
+        }
+    }
+
     /// Sprawdza język i pobiera model mowy Apple.
     private func prepareAppleSpeech() async -> Bool {
         status = "Sprawdzam model mowy…"
@@ -317,6 +353,7 @@ public final class Recorder: ObservableObject {
 
         // Zatrzymujemy tylko serwer, który sami podnieśliśmy.
         await whisperServer.stop()
+        await parakeetServer.stop()
         if bridgeStarted {
             await bridge.stop()
             bridgeStarted = false
@@ -468,7 +505,7 @@ public final class Recorder: ObservableObject {
                     // `updatedAt` więc nie rośnie, segment jest uznawany za
                     // martwy po 2,5 s i wszystkie kolejne — dłuższe i lepsze —
                     // wersje tekstu lądują w koszu. Turę i tak domykamy jawnie.
-                    if self.settings.asrBackend != .whisperLocal {
+                    if self.settings.asrBackend == .appleSpeech {
                         self.store.finalizeIdle()
                     }
                     self.publish()

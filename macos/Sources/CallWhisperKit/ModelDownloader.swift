@@ -15,9 +15,6 @@ public struct SpeechModel: Sendable, Identifiable, Hashable {
     var url: String
     /// Parakeet: katalog w archiwum `.tar.bz2`.
     var archiveDir: String?
-
-    /// Na żywo działa tylko whisper (serwer HTTP); Parakeet tylko w imporcie.
-    public var supportsLive: Bool { family == .whisper }
 }
 
 /// Pobieranie modeli mowy.
@@ -76,10 +73,10 @@ public actor ModelDownloader {
                 "Whisper Large v3", "najdokładniejszy i najwolniejszy — raczej do importu plików"),
         parakeet("parakeet-tdt-0.6b-v3", "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8", 487_170_055,
                  "5793d0fd397c5778d2cf2126994d58e9d56b1be7c04d13c7a15bb1b4eafb16bf",
-                 "Parakeet TDT 0.6B v3", "25 języków z polskim, bardzo szybki; tylko import plików"),
+                 "Parakeet TDT 0.6B v3", "25 języków z polskim, bardzo szybki, bez podpowiedzi słownictwa"),
         parakeet("parakeet-unified-en-0.6b", "sherpa-onnx-nemo-parakeet-unified-en-0.6b-int8-non-streaming", 501_350_460,
                  "99f63605b3a85a54c250c0869670a687b7d6598a47bf2421515e1f839a76e150",
-                 "Parakeet Unified EN 0.6B", "tylko angielski, bardzo dokładny; tylko import plików"),
+                 "Parakeet Unified EN 0.6B", "tylko angielski, bardzo dokładny"),
     ]
 
     public static func model(_ id: String) -> SpeechModel? { catalog.first { $0.id == id } }

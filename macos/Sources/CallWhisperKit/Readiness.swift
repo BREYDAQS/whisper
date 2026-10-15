@@ -44,6 +44,16 @@ public struct Readiness: Sendable {
 
         // Silnik nie blokuje startu: brakujący aplikacja pobiera sama (1,3 MB),
         // tak samo jak model. Pokazujemy go, żeby było wiadomo, skąd pauza.
+        if ModelDownloader.model(model)?.family == .parakeet {
+            let ready = Engines.isInstalled(.parakeetEngine)
+            checks.append(Check(
+                id: "whisper",
+                title: "Silnik Parakeet (sherpa-onnx)",
+                ok: ready,
+                fix: ready ? nil : .downloadEngine(.parakeetEngine),
+                detail: ready ? "Pobrany." : "Aplikacja pobierze go sama przy pierwszym nasłuchu (~63 MB)."
+            ))
+        } else {
         let whisper = WhisperServer.locateBinary()
         checks.append(Check(
             id: "whisper",
@@ -55,6 +65,7 @@ public struct Readiness: Sendable {
                 : "Wbudowany." }
                 ?? "Aplikacja pobierze go sama przy pierwszym nasłuchu (1,3 MB)."
         ))
+        }
 
         let hasModel = ModelDownloader.isInstalled(model)
         checks.append(Check(

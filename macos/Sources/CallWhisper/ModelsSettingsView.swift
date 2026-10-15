@@ -14,16 +14,16 @@ struct ModelsSettingsView: View {
             } header: {
                 Text("Whisper — na żywo i import")
             } footer: {
-                Text("Modele w \(WhisperServer.modelsDirectory.path). Na żywo używany jest model wybrany w zakładce Mowa.")
+                Text("Modele w \(WhisperServer.modelsDirectory.path). Na żywo używany jest silnik i model wybrany w zakładce Mowa.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 
             Section {
                 ForEach(ModelDownloader.catalog.filter { $0.family == .parakeet }) { row($0) }
             } header: {
-                Text("Parakeet (NVIDIA) — import plików")
+                Text("Parakeet (NVIDIA) — na żywo i import")
             } footer: {
-                Text("Przez sherpa-onnx; razem z pierwszym modelem pobiera się silnik (~\(mb(Engines.downloadBytes(.parakeetEngine)))).")
+                Text("Przez sherpa-onnx; razem z pierwszym modelem pobiera się silnik (~\(mb(Engines.downloadBytes(.parakeetEngine)))). Na żywo: Ustawienia → Mowa → Silnik: Parakeet.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 
@@ -39,7 +39,7 @@ struct ModelsSettingsView: View {
 
     private func row(_ model: SpeechModel) -> some View {
         item(id: model.id, name: model.name, note: model.note, bytes: model.bytes,
-             inUse: model.id == settings.whisperModel)
+             inUse: model.id == settings.liveModel)
     }
 
     private func item(id: String, name: String, note: String, bytes: Int64, inUse: Bool) -> some View {

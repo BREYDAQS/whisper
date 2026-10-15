@@ -1,0 +1,48 @@
+[2026-10-15 11:13:49] [error] handle_read_handshake error: websocketpp.transport:7 (End of File)
+[2026-10-15 11:14:00] [error] handle_read_handshake error: websocketpp.transport:7 (End of File)
+[2026-10-15 11:14:01] [connect] WebSocket Connection 127.0.0.1:56656 v13 "swift-frontend (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:14:02] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:14:02] [connect] WebSocket Connection 127.0.0.1:56660 v13 "swift-frontend (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:14:02] [disconnect] Disconnect close local:[1000,Done] remote:[1000]
+[2026-10-15 11:16:09] [error] handle_read_handshake error: websocketpp.transport:7 (End of File)
+[2026-10-15 11:16:12] [connect] WebSocket Connection 127.0.0.1:56858 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:16:12] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:16:13] [connect] WebSocket Connection 127.0.0.1:56860 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:16:13] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:00] [error] handle_read_handshake error: websocketpp.transport:7 (End of File)
+[2026-10-15 11:24:02] [connect] WebSocket Connection 127.0.0.1:57577 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:03] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:04] [connect] WebSocket Connection 127.0.0.1:57578 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:04] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:05] [connect] WebSocket Connection 127.0.0.1:57581 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:05] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:06] [connect] WebSocket Connection 127.0.0.1:57582 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:06] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:07] [connect] WebSocket Connection 127.0.0.1:57585 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:08] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:09] [connect] WebSocket Connection 127.0.0.1:57589 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:09] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:09] [warning] got frame in state closed
+[2026-10-15 11:24:10] [connect] WebSocket Connection 127.0.0.1:57590 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:10] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:11] [connect] WebSocket Connection 127.0.0.1:57592 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:11] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:12] [connect] WebSocket Connection 127.0.0.1:57603 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:13] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:14] [connect] WebSocket Connection 127.0.0.1:57609 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:14] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:15] [connect] WebSocket Connection 127.0.0.1:57611 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:15] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:16] [connect] WebSocket Connection 127.0.0.1:57614 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:17] [disconnect] Disconnect close local:[1000,Done] remote:[1000]
+[2026-10-15 11:24:17] [connect] WebSocket Connection 127.0.0.1:57621 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:18] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:18] [warning] got frame in state closed
+[2026-10-15 11:24:19] [connect] WebSocket Connection 127.0.0.1:57623 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:19] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:20] [connect] WebSocket Connection 127.0.0.1:57626 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:20] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:21] [connect] WebSocket Connection 127.0.0.1:57627 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:22] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]
+[2026-10-15 11:24:22] [connect] WebSocket Connection 127.0.0.1:57630 v13 "call-whisper (unknown version) CFNetwork/3860.700.1 Darwin/25.6.0" / 101
+[2026-10-15 11:24:22] [disconnect] Disconnect close local:[1000,Done] remote:[1000,Done]

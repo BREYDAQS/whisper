@@ -117,7 +117,7 @@ public final class AppSettings: ObservableObject {
         case asrBackend, whisperModel, whisperPort, autoStartWhisper, identifySpeakers
         case diarizeAfter, detectMeetings, autoStartOnMeeting, followOBS, whisperVocabulary
         case notchIsland, autoUpdate
-        case importModel, importDiarize, importSpeakers
+        case importModel, importDiarize, importSpeakers, parakeetModel
     }
 
     /// Domyślny język mowy bierzemy z systemu, a nie na sztywno — inaczej
@@ -174,6 +174,7 @@ public final class AppSettings: ObservableObject {
             Key.importModel.rawValue: "small",
             Key.importDiarize.rawValue: true,
             Key.importSpeakers.rawValue: 0,
+            Key.parakeetModel.rawValue: "parakeet-tdt-0.6b-v3",
         ])
     }
 
@@ -362,6 +363,18 @@ public final class AppSettings: ObservableObject {
         get { ASRBackend(rawValue: get(.asrBackend, ASRBackend.whisperLocal.rawValue)) ?? .whisperLocal }
         set { set(.asrBackend, newValue.rawValue) }
     }
+
+    /// Model Parakeet na żywo (gdy silnikiem jest Parakeet).
+    public var parakeetModel: String {
+        get { get(.parakeetModel, "parakeet-tdt-0.6b-v3") }
+        set { set(.parakeetModel, newValue) }
+    }
+
+    /// Model, którego używa nasłuch przy obecnym silniku.
+    public var liveModel: String { asrBackend == .parakeetLocal ? parakeetModel : whisperModel }
+
+    /// Port serwera Parakeet na żywo; import whispera siedzi na +1.
+    public var parakeetPort: Int { whisperPort + 2 }
 
     /// Model whisper.cpp. `small` bije `large-v3-turbo` czterokrotnie przy tej
     /// samej jakości po polsku — stąd domyślny.

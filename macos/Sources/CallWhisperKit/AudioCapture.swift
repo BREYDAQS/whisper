@@ -30,6 +30,10 @@ public struct PCMChunk: Sendable {
     public var samples: [Float]
     /// Czas pierwszej próbki względem startu sesji, w ms.
     public var startMs: Double
+
+    public init(source: AudioSource, samples: [Float], startMs: Double) {
+        self.source = source; self.samples = samples; self.startMs = startMs
+    }
 }
 
 /// Konwersja dowolnego formatu wejściowego na 16 kHz mono Float32.

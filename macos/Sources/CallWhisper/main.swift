@@ -161,6 +161,58 @@ func runListen(seconds: Double) async -> Int32 {
     return recorder.segments.isEmpty ? 3 : 0
 }
 
+/// `call-whisper --pipeline <nagranie>` — plik podany do łańcucha nasłuchu
+/// w czasie rzeczywistym, tym samym silnikiem co w Ustawieniach. Sprawdza
+/// VAD, rundy przyrostowe i domykanie wypowiedzi bez przechwytywania dźwięku.
+func runPipeline(path: String) async -> Int32 {
+    let (backend, whisperModel, parakeetModel, whisperPort, parakeetPort, language) = await MainActor.run {
+        let s = AppSettings.shared
+        return (s.asrBackend, s.whisperModel, s.parakeetModel, s.whisperPort, s.parakeetPort, s.languageCode)
+    }
+    @Sendable func log(_ message: String) { FileHandle.standardError.write(Data("\(message)\n".utf8)) }
+    let whisper = WhisperServer()
+    let parakeet = ParakeetServer()
+    do {
+        switch backend {
+        case .parakeetLocal:
+            guard let model = ModelDownloader.model(parakeetModel) else { log("nie znam \(parakeetModel)"); return 1 }
+            if !Engines.isInstalled(.parakeetEngine) { try await Engines.install(.parakeetEngine) }
+            try await ModelDownloader().download(model.id) { _ in }
+            try await parakeet.ensureRunning(model: model, port: parakeetPort)
+        case .whisperLocal:
+            try await whisper.ensureRunning(.init(model: whisperModel, port: whisperPort, language: language))
+        case .appleSpeech:
+            log("--pipeline obsługuje whisper i Parakeet"); return 1
+        }
+        let pcm = try await MediaImport.decode(URL(fileURLWithPath: path))
+        log("silnik: \(backend.label), \(pcm.count / 16_000) s audio")
+        let pipeline = SourcePipeline(source: .system, backend: backend, whisperPort: whisperPort,
+                                      parakeetPort: parakeetPort, languageCode: language)
+        let started = Date()
+        try await pipeline.start(locale: Locale(identifier: language), onUpdate: { u in
+            guard u.isFinal || CommandLine.arguments.contains("--parts") else { return }
+            log(String(format: "%6.1f s  %@ %@", Date().timeIntervalSince(started),
+                       u.isFinal ? "FINAL" : "part ", u.discard ? "(odrzucone)" : u.text))
+        }, onError: { log("! \($0.localizedDescription)") })
+        // Paczki po 100 ms w tempie nagrania + 3 s ciszy na domknięcie ostatniej tury.
+        let step = 1_600
+        let padded = pcm + [Float](repeating: 0, count: 48_000)
+        for offset in stride(from: 0, to: padded.count, by: step) {
+            let chunk = Array(padded[offset..<min(padded.count, offset + step)])
+            pipeline.submit(PCMChunk(source: .system, samples: chunk, startMs: Double(offset) / 16))
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        try? await Task.sleep(for: .seconds(3))
+        await pipeline.cancel()
+    } catch {
+        log(error.localizedDescription)
+        await whisper.stop(); await parakeet.stop()
+        return 2
+    }
+    await whisper.stop(); await parakeet.stop()
+    return 0
+}
+
 /// `call-whisper --ask "pytanie"` — sprawdza most do Claude Code tą samą
 /// ścieżką kodu, której używa aplikacja. Bez klucza API.
 func runAsk(_ question: String) async -> Int32 {
@@ -434,6 +486,7 @@ if let path = flagValue("--import") {
     exit(await runImport(path: path, diarize: flagValue("--speakers") != nil,
                          speakers: flagValue("--speakers").flatMap(Int.init), model: flagValue("--model")))
 }
+if let path = flagValue("--pipeline") { exit(await runPipeline(path: path)) }
 if arguments.contains("--ask-seq") { exit(await runAskSequence()) }
 if let i = arguments.firstIndex(of: "--ask-image"), arguments.count > i + 2 {
     exit(await runAskImage(path: arguments[i + 1], question: arguments[i + 2]))

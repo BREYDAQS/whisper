@@ -187,7 +187,8 @@ func runPipeline(path: String) async -> Int32 {
         let pcm = try await MediaImport.decode(URL(fileURLWithPath: path))
         log("silnik: \(backend.label), \(pcm.count / 16_000) s audio")
         let pipeline = SourcePipeline(source: .system, backend: backend, whisperPort: whisperPort,
-                                      parakeet: parakeet, languageCode: language)
+                                      parakeet: parakeet, languageCode: language,
+                                      livePreview: !CommandLine.arguments.contains("--no-preview"))
         let started = Date()
         try await pipeline.start(locale: Locale(identifier: language), onUpdate: { u in
             guard u.isFinal || CommandLine.arguments.contains("--parts") else { return }

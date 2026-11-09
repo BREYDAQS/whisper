@@ -154,10 +154,16 @@ public actor SourcePipeline {
     public private(set) var lastLatencyMs: Double?
 
     public let identifySpeakers: Bool
+    /// Rundy przyrostowe (tekst w trakcie mówienia). Wyłączone = tylko wersja
+    /// ostateczna po końcu wypowiedzi: jedno przejście modelu na wypowiedź
+    /// zamiast jednego co 1,2 s.
+    public let livePreview: Bool
 
     public init(source: AudioSource, backend: ASRBackend, whisperPort: Int = 8899, parakeet: ParakeetRecognizer? = nil,
-                languageCode: String = "pl", identifySpeakers: Bool = false, vocabulary: String = "") {
+                languageCode: String = "pl", identifySpeakers: Bool = false, vocabulary: String = "",
+                livePreview: Bool = true) {
         self.source = source
+        self.livePreview = livePreview
         self.vocabulary = String(Text.normalize(vocabulary).prefix(300))
         self.backend = backend
         self.identifySpeakers = identifySpeakers
@@ -294,7 +300,7 @@ public actor SourcePipeline {
             return
         }
 
-        guard let u = utterance else { return }
+        guard livePreview, let u = utterance else { return }
         guard inFlight == nil else { trace("tick: poprzednia w locie"); return }
         let now = ring.newestMs
         guard now - u.startMs >= minAudioMs else { return }

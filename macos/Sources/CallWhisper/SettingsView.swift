@@ -7,6 +7,7 @@ struct SettingsView: View {
     @ObservedObject var obs: OBSLink
     @ObservedObject var updater: Updater
     @ObservedObject var models: ModelStore
+    @ObservedObject var dictation: DictationController
     @State private var probeResult: String?
     @State private var probing = false
     @State private var modelStatus: String = "sprawdzam…"
@@ -163,6 +164,28 @@ struct SettingsView: View {
             }
             .onChange(of: settings.language) { _, _ in Task { await refreshModelStatus() } }
 
+            Section("Dyktowanie") {
+                Toggle("Dyktuj klawiszem Fn (🌐) do dowolnego pola", isOn: Binding(
+                    get: { settings.dictationEnabled }, set: { settings.dictationEnabled = $0 }))
+                if settings.dictationEnabled {
+                    Picker("Tryb", selection: Binding(
+                        get: { settings.dictationMode }, set: { settings.dictationMode = $0 })) {
+                        Text("Trzymaj Fn i mów").tag("push")
+                        Text("Tapnij Fn: start / stop").tag("toggle")
+                    }
+                    if !dictation.trusted {
+                        HStack {
+                            Label("Brak zgody „Dostępność” — skrót działa tylko w oknie call-whisper, tekst zostaje w schowku.",
+                                  systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption).foregroundStyle(.orange)
+                            Button("Nadaj") { dictation.requestTrust() }.controlSize(.small)
+                        }
+                    }
+                    Text("Tekst wkleja się tam, gdzie stoi kursor; schowek wraca po 2 s. Model: whisper \(settings.whisperModel). Ustaw w Ustawieniach systemowych → Klawiatura „Naciśnij 🌐, aby: Nic nie rób”, inaczej Fn otworzy też emoji albo dyktowanie Apple.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
             Toggle("Rozpoznawaj, kto mówi", isOn: Binding(
                 get: { settings.identifySpeakers }, set: { settings.identifySpeakers = $0 }))
                 .help("Klastrowanie MFCC — podejście sprzed ery sieci neuronowych. Rozdziela wyraźnie różne głosy, ale podobne potrafi rozsypać na kilka etykiet.")
@@ -181,6 +204,13 @@ struct SettingsView: View {
                      : "Przy pierwszym użyciu pobierze silnik i modele (~100 MB). Po zatrzymaniu „Rozmówcy” rozpadną się na „Rozmówca 1”, „Rozmówca 2”…")
                     .font(.caption).foregroundStyle(.secondary)
             }
+
+            Toggle("Tekst na żywo w trakcie mówienia", isOn: Binding(
+                get: { settings.livePreview }, set: { settings.livePreview = $0 }))
+            Text(settings.livePreview
+                 ? "Wypowiedź jest przepisywana co 1,2 s, zanim się skończy. Na whisper small ok. 8% jednego rdzenia (bez podglądu ok. 2%)."
+                 : "Tekst pojawia się dopiero po końcu wypowiedzi. Model liczy raz na wypowiedź zamiast co 1,2 s: ok. 2% jednego rdzenia zamiast 8%.")
+                .font(.caption).foregroundStyle(.secondary)
 
             Picker("Silnik", selection: Binding(
                 get: { settings.asrBackend }, set: { settings.asrBackend = $0 })) {

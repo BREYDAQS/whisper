@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     let obs = OBSLink()
     lazy var updater = Updater(recorder: recorder)
     let imports = ImportCenter()
+    let dictation = DictationController()
     private let settings = AppSettings.shared
     /// Nasłuch włączony przez wykrywanie — tylko taki wolno nam samym zatrzymać.
     private var autoStarted = false
@@ -48,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         obs.onRecordStop = { [weak self] path in self?.obsRecordingStopped(path: path) }
         syncOBS()
         syncNotch()
+        syncDictation()
         updater.start()
         // Importy przerwane zamknięciem aplikacji (jak w whistlerze).
         imports.resumePending()
@@ -56,6 +58,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// Wyspa w notchu włączana i wyłączana z Ustawień bez restartu.
     func syncNotch() {
         if AppSettings.shared.notchIsland { notch.start(recorder: recorder) } else { notch.stop() }
+    }
+
+    func syncDictation() {
+        if settings.dictationEnabled { dictation.start() } else { dictation.stop() }
     }
 
     /// Zwykłe wyjście (⌘Q) gasi serwer mowy od razu; na `await` nie ma tu czasu.
@@ -185,11 +191,13 @@ struct CallWhisperApp: App {
         }
 
         Settings {
-            SettingsView(settings: settings, obs: delegate.obs, updater: delegate.updater, models: .shared)
+            SettingsView(settings: settings, obs: delegate.obs, updater: delegate.updater, models: .shared,
+                         dictation: delegate.dictation)
                 .tint(M3.color.primary)
                 .onChange(of: settings.detectMeetings) { _, _ in delegate.syncMeetingDetection() }
                 .onChange(of: settings.followOBS) { _, _ in delegate.syncOBS() }
                 .onChange(of: settings.notchIsland) { _, _ in delegate.syncNotch() }
+                .onChange(of: settings.dictationEnabled) { _, _ in delegate.syncDictation() }
         }
     }
 }

@@ -141,7 +141,8 @@ public final class Recorder: ObservableObject {
                                               // Nazwy z kontekstu projektu doklejamy same: plik
                                               // już je ma, a whisper bez nich je przekręca.
                                               vocabulary: Vocabulary.merge(settings.whisperVocabulary,
-                                                                           context: settings.projectContext))
+                                                                           context: settings.projectContext),
+                                              livePreview: settings.livePreview)
                 pipelines[source] = pipeline
                 try await pipeline.start(locale: settings.locale, onUpdate: { [weak self] update in
                     Task { @MainActor in self?.apply(update) }

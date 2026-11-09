@@ -302,7 +302,8 @@ struct MainView: View {
                 .foregroundStyle(M3.color.onPrimaryContainer)
                 .frame(width: 72, height: 72)
                 .background(M3.color.primaryContainer, in: Circle())
-                .symbolEffect(.variableColor.iterative, isActive: recorder.isRunning)
+                // Bez `.symbolEffect(.variableColor)`: animacja SwiftUI co klatkę
+                // brała ~16% CPU przez cały nasłuch (zmierzone 2026-11-09).
             Text(recorder.isRunning ? "Słucham" : (recorder.isProcessing ? "Pracuję" : "Cisza"))
                 .font(M3.type.headlineSmall)
                 .foregroundStyle(M3.color.onSurface)

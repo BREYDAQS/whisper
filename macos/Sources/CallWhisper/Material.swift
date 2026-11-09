@@ -366,23 +366,65 @@ struct M3FieldBackground: ViewModifier {
 }
 
 /// Wskaźnik liniowy M3: tor secondary container, wskaźnik primary.
+///
+/// Animowany przez Core Animation, nie SwiftUI. `repeatForever` w SwiftUI
+/// to aktualizacja grafu co klatkę (120 Hz), a w oknie z ukrytym paskiem
+/// tytułu każda klatka przelicza też regiony przeciągania całego okna.
+/// Zmierzone 2026-11-09: jeden taki pasek przy odpowiedzi „w toku" = ~55% CPU
+/// głównego wątku, także przy oknie na innym pulpicie. Animacja warstwy
+/// chodzi w render serverze i główny wątek jej nie widzi.
 struct M3LinearProgress: View {
-    @State private var phase: CGFloat = -0.4
-
     var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(M3.color.secondaryContainer)
-                Capsule().fill(M3.color.primary)
-                    .frame(width: geo.size.width * 0.4)
-                    .offset(x: geo.size.width * phase)
-            }
-            .clipShape(Capsule())
+        IndeterminateBar().frame(height: 4)
+    }
+}
+
+private struct IndeterminateBar: NSViewRepresentable {
+    func makeNSView(context: Context) -> IndeterminateBarView { IndeterminateBarView() }
+    func updateNSView(_ nsView: IndeterminateBarView, context: Context) {}
+}
+
+final class IndeterminateBarView: NSView {
+    private let indicator = CALayer()
+    private var animatedWidth: CGFloat = -1
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.masksToBounds = true
+        layer?.addSublayer(indicator)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) nie jest używane") }
+
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = NSColor(M3.color.secondaryContainer).cgColor
+            indicator.backgroundColor = NSColor(M3.color.primary).cgColor
         }
-        .frame(height: 4)
-        .onAppear {
-            withAnimation(.linear(duration: 1.4).repeatForever(autoreverses: false)) { phase = 1 }
-        }
+    }
+
+    override func layout() {
+        super.layout()
+        let size = bounds.size
+        layer?.cornerRadius = size.height / 2
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        indicator.frame = CGRect(x: 0, y: 0, width: size.width * 0.4, height: size.height)
+        indicator.cornerRadius = size.height / 2
+        CATransaction.commit()
+        // Animacja zależy od szerokości — podmieniamy ją tylko, gdy ta się zmieni.
+        guard size.width != animatedWidth else { return }
+        animatedWidth = size.width
+        let slide = CABasicAnimation(keyPath: "transform.translation.x")
+        slide.fromValue = -size.width * 0.4
+        slide.toValue = size.width
+        slide.duration = 1.4
+        slide.repeatCount = .infinity
+        slide.timingFunction = CAMediaTimingFunction(name: .linear)
+        indicator.add(slide, forKey: "slide")
     }
 }
 

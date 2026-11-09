@@ -118,6 +118,7 @@ public final class AppSettings: ObservableObject {
         case diarizeAfter, detectMeetings, autoStartOnMeeting, followOBS, whisperVocabulary
         case notchIsland, autoUpdate
         case importModel, importDiarize, importSpeakers, parakeetModel, autoAnalyze
+        case dictationEnabled, dictationMode, livePreview
     }
 
     /// Domyślny język mowy bierzemy z systemu, a nie na sztywno — inaczej
@@ -313,6 +314,25 @@ public final class AppSettings: ObservableObject {
     public var notchIsland: Bool {
         get { get(.notchIsland, true) }
         set { set(.notchIsland, newValue) }
+    }
+
+    /// Tekst wypowiedzi w trakcie mówienia (whisper/Parakeet co 1,2 s).
+    /// Wyłączone = tekst dopiero po końcu wypowiedzi, za to dużo mniej CPU.
+    public var livePreview: Bool {
+        get { get(.livePreview, false) }
+        set { set(.livePreview, newValue) }
+    }
+
+    /// Dyktowanie klawiszem Fn (🌐) do dowolnego pola tekstowego, jak w whistlerze.
+    public var dictationEnabled: Bool {
+        get { get(.dictationEnabled, true) }
+        set { set(.dictationEnabled, newValue) }
+    }
+
+    /// `push` = trzymaj Fn i mów; `toggle` = tapnij Fn, żeby zacząć i skończyć.
+    public var dictationMode: String {
+        get { get(.dictationMode, "push") }
+        set { set(.dictationMode, newValue) }
     }
 
     /// Ściąganie zmian z GitHuba i przebudowa apki (tylko pull, nigdy push).

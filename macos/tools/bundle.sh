@@ -35,6 +35,9 @@ mkdir -p "$APP/Contents/Resources/bin"
 cp "$VENDOR/bin/whisper-server" "$APP/Contents/Resources/bin/whisper-server"
 # Ikona: gotowy plik z repo (generuje go `npm run mac:icon`).
 cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+# Fonty marki Breydaqs (OFL) — rejestruje je BrandFonts przy starcie.
+mkdir -p "$APP/Contents/Resources/Fonts"
+cp "$ROOT/Resources/Fonts/"* "$APP/Contents/Resources/Fonts/"
 # Diaryzacja (~100 MB) celowo nie jedzie w paczce: jest opcjonalna
 # i aplikacja pobiera ją sama przy pierwszym użyciu.
 

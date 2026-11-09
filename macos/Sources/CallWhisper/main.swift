@@ -471,6 +471,8 @@ func runImport(path: String, diarize: Bool, speakers: Int?, model: String?) asyn
     }
 }
 
+// Fonty marki przed pierwszym widokiem (także dla --snapshot).
+BrandFonts.register()
 let arguments = CommandLine.arguments
 func flagValue(_ name: String) -> String? {
     guard let i = arguments.firstIndex(of: name), arguments.count > i + 1 else { return nil }

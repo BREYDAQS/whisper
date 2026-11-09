@@ -13,38 +13,44 @@ enum M3 {
 
     /// Role kolorów M3. Nazwy 1:1 z m3.material.io/styles/color/roles.
     enum color {
-        static let primary = dyn(0x0B57D0, 0xA8C7FA)
-        static let onPrimary = dyn(0xFFFFFF, 0x062E6F)
-        static let primaryContainer = dyn(0xD3E3FD, 0x0842A0)
-        static let onPrimaryContainer = dyn(0x041E49, 0xD3E3FD)
-        static let secondaryContainer = dyn(0xC2E7FF, 0x004A77)
-        static let onSecondaryContainer = dyn(0x001D35, 0xC2E7FF)
-        static let tertiary = dyn(0x146C2E, 0x6DD58C)
-        static let tertiaryContainer = dyn(0xC4EED0, 0x0F5223)
-        static let onTertiaryContainer = dyn(0x072711, 0xC4EED0)
-        static let error = dyn(0xB3261E, 0xF2B8B5)
-        static let errorContainer = dyn(0xF9DEDC, 0x8C1D18)
-        static let onErrorContainer = dyn(0x410E0B, 0xF9DEDC)
+        // Branding Breydaqs (breydaqs.com): papier #e8e8e3 i atrament #080807,
+        // w ciemnym #161614 i #e8e8e3; akcent #ff7a59 tylko tam, gdzie coś
+        // „żyje" (nagrywanie, wypowiedź w trakcie). Nazwy ról zostały z M3,
+        // żeby nie ruszać widoków — zmieniły się wartości.
+        static let accent = dyn(0xFF7A59, 0xFF7A59)
+        static let dark = dyn(0x0D0D0C, 0x0D0D0C)
+        static let light = dyn(0xE8E8E3, 0xE8E8E3)
 
-        static let surface = dyn(0xF8FAFD, 0x131314)
-        static let surfaceContainerLowest = dyn(0xFFFFFF, 0x0E0E0E)
-        static let surfaceContainerLow = dyn(0xF3F6FC, 0x1B1B1B)
-        static let surfaceContainer = dyn(0xF0F4F9, 0x1E1F20)
-        static let surfaceContainerHigh = dyn(0xE9EEF6, 0x282A2C)
-        static let surfaceContainerHighest = dyn(0xDDE3EA, 0x333537)
-        static let onSurface = dyn(0x1F1F1F, 0xE3E3E3)
-        static let onSurfaceVariant = dyn(0x444746, 0xC4C7C5)
-        static let outline = dyn(0x747775, 0x8E918F)
-        static let outlineVariant = dyn(0xC4C7C5, 0x444746)
+        static let primary = dyn(0x080807, 0xE8E8E3)
+        static let onPrimary = dyn(0xE8E8E3, 0x0D0D0C)
+        static let primaryContainer = dyn(0xD6D6D0, 0x2A2A27)
+        static let onPrimaryContainer = dyn(0x080807, 0xE8E8E3)
+        static let secondaryContainer = dyn(0x080807, 0xE8E8E3)
+        static let onSecondaryContainer = dyn(0xE8E8E3, 0x161614)
+        static let tertiary = dyn(0x2F7D4F, 0x6FCF97)
+        static let tertiaryContainer = dyn(0xC9DCCB, 0x1F3A2A)
+        static let onTertiaryContainer = dyn(0x17432A, 0xC9F0D9)
+        static let error = dyn(0xC2361B, 0xFF8A6E)
+        /// Stan „nagrywam" (aktywny przycisk główny): akcent z ciemnym tekstem.
+        static let errorContainer = dyn(0xFF7A59, 0xFF7A59)
+        static let onErrorContainer = dyn(0x0D0D0C, 0x0D0D0C)
 
-        /// Role układu jak w Gmailu i Gemini: strona, na niej karty treści,
-        /// w kartach elementy wsunięte. W jasnym karty są białe na
-        /// szaroniebieskiej stronie, w ciemnym jaśniejsze od strony, nie
-        /// ciemniejsze (surface container lowest wyglądał tam jak dziura).
-        static let page = dyn(0xF0F4F9, 0x131314)
-        static let card = dyn(0xFFFFFF, 0x1E1F20)
-        static let cardInset = dyn(0xF0F4F9, 0x282A2C)
-        static let cardField = dyn(0xE9EEF6, 0x333537)
+        static let surface = dyn(0xE8E8E3, 0x161614)
+        static let surfaceContainerLowest = dyn(0xEFEFEA, 0x121210)
+        static let surfaceContainerLow = dyn(0xE3E3DD, 0x1A1A18)
+        static let surfaceContainer = dyn(0xE0E0DA, 0x1C1C1A)
+        static let surfaceContainerHigh = dyn(0xDCDCD5, 0x22221F)
+        static let surfaceContainerHighest = dyn(0xD6D6D0, 0x2A2A27)
+        static let onSurface = dyn(0x080807, 0xE8E8E3)
+        static let onSurfaceVariant = dyn(0x5A5A55, 0xA4A49E)
+        static let outline = dyn(0x8A8A84, 0x6E6E69)
+        static let outlineVariant = dyn(0xC6C6BF, 0x3A3A36)
+
+        /// Strona i karty jak sekcje papieru na stronie: karta o ton ciemniejsza.
+        static let page = dyn(0xE8E8E3, 0x161614)
+        static let card = dyn(0xE1E1DB, 0x1F1F1C)
+        static let cardInset = dyn(0xE8E8E3, 0x161614)
+        static let cardField = dyn(0xE8E8E3, 0x161614)
 
         /// Kolor zależny od wyglądu systemu, bez katalogu zasobów (SwiftPM
         /// go nie ma, a my nie chcemy kroku build).
@@ -61,30 +67,31 @@ enum M3 {
 
     // MARK: - kształty
 
-    /// Skala kształtów M3 (m3.material.io/styles/shape/corner-radius-scale).
+    /// Rogi jak na stronie Breydaqs (`rounded-[0.15rem]`): prawie kwadrat.
     enum shape {
-        static let extraSmall: CGFloat = 4
-        static let small: CGFloat = 8
-        static let medium: CGFloat = 12
-        static let large: CGFloat = 16
-        static let extraLarge: CGFloat = 28
+        static let extraSmall: CGFloat = 2
+        static let small: CGFloat = 3
+        static let medium: CGFloat = 3
+        static let large: CGFloat = 4
+        static let extraLarge: CGFloat = 6
     }
 
     // MARK: - typografia
 
-    /// Skala typografii M3. Google Sans nie jest dostępny w systemie, więc
-    /// rozmiary, grubości i interlinie z M3 dostaje krój systemowy.
+    /// Typografia Breydaqs: Geist do tytułów, Inter Tight do tekstu,
+    /// JetBrains Mono do małych etykiet. Fonty w paczce (`BrandFonts`);
+    /// bez nich SwiftUI spada na krój systemowy.
     enum type {
-        static let headlineSmall = Font.system(size: 24, weight: .regular)
-        static let titleLarge = Font.system(size: 22, weight: .regular)
-        static let titleMedium = Font.system(size: 16, weight: .medium)
-        static let titleSmall = Font.system(size: 14, weight: .medium)
-        static let bodyLarge = Font.system(size: 16, weight: .regular)
-        static let bodyMedium = Font.system(size: 14, weight: .regular)
-        static let bodySmall = Font.system(size: 12, weight: .regular)
-        static let labelLarge = Font.system(size: 14, weight: .medium)
-        static let labelMedium = Font.system(size: 12, weight: .medium)
-        static let labelSmall = Font.system(size: 11, weight: .medium)
+        static let headlineSmall = Font.custom(BrandFonts.display, size: 28).weight(.semibold)
+        static let titleLarge = Font.custom(BrandFonts.display, size: 22).weight(.semibold)
+        static let titleMedium = Font.custom(BrandFonts.sans, size: 16).weight(.semibold)
+        static let titleSmall = Font.custom(BrandFonts.sans, size: 14).weight(.semibold)
+        static let bodyLarge = Font.custom(BrandFonts.sans, size: 16).weight(.medium)
+        static let bodyMedium = Font.custom(BrandFonts.sans, size: 14).weight(.medium)
+        static let bodySmall = Font.custom(BrandFonts.sans, size: 12).weight(.medium)
+        static let labelLarge = Font.custom(BrandFonts.sans, size: 14).weight(.semibold)
+        static let labelMedium = Font.custom(BrandFonts.mono, size: 10.5).weight(.medium)
+        static let labelSmall = Font.custom(BrandFonts.mono, size: 10).weight(.medium)
     }
 
     // MARK: - warstwy stanu
@@ -143,18 +150,20 @@ private struct M3ButtonBody: View {
             .padding(.horizontal, kind == .text ? 12 : (compact ? 16 : 24))
             .frame(height: compact ? 32 : 40)
             .background {
-                Capsule().fill(isEnabled ? container
+                RoundedRectangle(cornerRadius: M3.shape.small).fill(isEnabled ? container
                                : (kind == .outlined || kind == .text ? .clear : M3.color.onSurface.opacity(0.12)))
             }
             .overlay {
-                Capsule().fill(content.opacity(M3.stateOpacity(hovered: hovered, pressed: configuration.isPressed)))
+                RoundedRectangle(cornerRadius: M3.shape.small)
+                    .fill(content.opacity(M3.stateOpacity(hovered: hovered, pressed: configuration.isPressed)))
             }
             .overlay {
                 if kind == .outlined {
-                    Capsule().strokeBorder(isEnabled ? M3.color.outline : M3.color.onSurface.opacity(0.12))
+                    RoundedRectangle(cornerRadius: M3.shape.small)
+                        .strokeBorder(isEnabled ? M3.color.onSurface : M3.color.onSurface.opacity(0.12))
                 }
             }
-            .contentShape(Capsule())
+            .contentShape(RoundedRectangle(cornerRadius: M3.shape.small))
             .onHover { hovered = $0 }
             .animation(.easeOut(duration: 0.12), value: hovered)
     }
@@ -192,10 +201,11 @@ private struct M3IconButtonBody: View {
             .labelStyle(.iconOnly)
             .font(.system(size: 18, weight: .regular))
             .foregroundStyle(isEnabled ? tint : M3.color.onSurface.opacity(0.38))
-            .frame(width: 40, height: 40)
-            .background(Circle().fill(selected ? M3.color.secondaryContainer : .clear))
-            .overlay(Circle().fill(tint.opacity(M3.stateOpacity(hovered: hovered, pressed: configuration.isPressed))))
-            .contentShape(Circle())
+            .frame(width: 38, height: 38)
+            .background(RoundedRectangle(cornerRadius: M3.shape.small).fill(selected ? M3.color.secondaryContainer : .clear))
+            .overlay(RoundedRectangle(cornerRadius: M3.shape.small)
+                .fill(tint.opacity(M3.stateOpacity(hovered: hovered, pressed: configuration.isPressed))))
+            .contentShape(RoundedRectangle(cornerRadius: M3.shape.small))
             .onHover { hovered = $0 }
     }
 }
@@ -217,22 +227,32 @@ private struct M3FABBody: View {
     @State private var hovered = false
 
     var body: some View {
-        let container = active ? M3.color.errorContainer : M3.color.primaryContainer
-        let content = active ? M3.color.onErrorContainer : M3.color.onPrimaryContainer
-        configuration.label
-            .font(M3.type.labelLarge)
-            .labelStyle(M3LabelStyle())
-            .foregroundStyle(content)
-            .padding(.horizontal, 20)
-            .frame(height: 56)
-            .background(RoundedRectangle(cornerRadius: M3.shape.large).fill(container))
-            .overlay(RoundedRectangle(cornerRadius: M3.shape.large)
-                .fill(content.opacity(M3.stateOpacity(hovered: hovered, pressed: configuration.isPressed))))
-            .shadow(color: .black.opacity(0.18), radius: hovered ? 8 : 5, y: hovered ? 4 : 3)
-            .opacity(isEnabled ? 1 : 0.6)
-            .contentShape(RoundedRectangle(cornerRadius: M3.shape.large))
-            .onHover { hovered = $0 }
-            .animation(.easeOut(duration: 0.15), value: hovered)
+        // Przycisk jak na stronie Breydaqs: atrament, tekst i kwadrat ze
+        // strzałką, który przy najechaniu lekko się kurczy. Nagrywanie = akcent.
+        let container = active ? M3.color.errorContainer : M3.color.primary
+        let content = active ? M3.color.onErrorContainer : M3.color.onPrimary
+        HStack(spacing: 12) {
+            configuration.label
+                .labelStyle(.titleOnly)
+                .font(.custom(BrandFonts.sans, size: 17).weight(.semibold))
+            Text(active ? "■" : "↗")
+                .font(.system(size: active ? 13 : 17, weight: .semibold))
+                .frame(width: 40, height: 40)
+                .background(RoundedRectangle(cornerRadius: M3.shape.small)
+                    .fill(active ? M3.color.dark.opacity(0.18) : M3.color.onPrimary.opacity(0.16)))
+                .scaleEffect(hovered ? 0.84 : 1)
+        }
+        .foregroundStyle(content)
+        .padding(.leading, 16)
+        .padding(.trailing, 6)
+        .frame(height: 52)
+        .background(RoundedRectangle(cornerRadius: M3.shape.small).fill(container))
+        .overlay(RoundedRectangle(cornerRadius: M3.shape.small)
+            .fill(content.opacity(configuration.isPressed ? 0.08 : 0)))
+        .opacity(isEnabled ? 1 : 0.6)
+        .contentShape(RoundedRectangle(cornerRadius: M3.shape.small))
+        .onHover { hovered = $0 }
+        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: hovered)
     }
 }
 
@@ -272,12 +292,13 @@ struct M3RailLabelStyle: LabelStyle {
             configuration.icon
                 .font(.system(size: 18, weight: .regular))
                 .foregroundStyle(selected ? M3.color.onSecondaryContainer : M3.color.onSurfaceVariant)
-                .frame(width: 56, height: 32)
-                .background(Capsule().fill(selected ? M3.color.secondaryContainer : .clear))
-                .overlay(Capsule().fill((selected ? M3.color.onSecondaryContainer : M3.color.onSurfaceVariant)
-                    .opacity(overlayOpacity)))
+                .frame(width: 52, height: 32)
+                .background(RoundedRectangle(cornerRadius: M3.shape.small).fill(selected ? M3.color.secondaryContainer : .clear))
+                .overlay(RoundedRectangle(cornerRadius: M3.shape.small)
+                    .fill((selected ? M3.color.onSecondaryContainer : M3.color.onSurfaceVariant).opacity(overlayOpacity)))
             configuration.title
-                .font(M3.type.labelMedium)
+                .font(M3.type.labelSmall)
+                .textCase(.uppercase)
                 .foregroundStyle(selected ? M3.color.onSurface : M3.color.onSurfaceVariant)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -354,13 +375,10 @@ struct M3FieldBackground: ViewModifier {
         content
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(M3.color.surfaceContainerHighest,
-                        in: UnevenRoundedRectangle(topLeadingRadius: M3.shape.extraSmall,
-                                                   topTrailingRadius: M3.shape.extraSmall))
-            .overlay(alignment: .bottom) {
-                Rectangle()
-                    .fill(focused ? M3.color.primary : M3.color.onSurfaceVariant)
-                    .frame(height: focused ? 2 : 1)
+            .background(M3.color.cardField, in: RoundedRectangle(cornerRadius: M3.shape.small))
+            .overlay {
+                RoundedRectangle(cornerRadius: M3.shape.small)
+                    .strokeBorder(focused ? M3.color.onSurface : M3.color.outlineVariant)
             }
     }
 }

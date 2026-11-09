@@ -99,9 +99,9 @@ struct MainView: View {
 
     private var topAppBar: some View {
         HStack(spacing: 4) {
-            Image(systemName: "waveform.circle.fill")
-                .font(.system(size: 22))
-                .foregroundStyle(M3.color.primary)
+            Image(systemName: "waveform")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(M3.color.accent)
             Text(screen == .library ? "Biblioteka importów" : (recorder.importedMeta?.title ?? "call-whisper"))
                 .font(M3.type.titleLarge)
                 .foregroundStyle(M3.color.onSurface)
@@ -301,7 +301,7 @@ struct MainView: View {
                 .font(.system(size: 30, weight: .medium))
                 .foregroundStyle(M3.color.onPrimaryContainer)
                 .frame(width: 72, height: 72)
-                .background(M3.color.primaryContainer, in: Circle())
+                .background(M3.color.primaryContainer, in: RoundedRectangle(cornerRadius: M3.shape.small))
                 // Bez `.symbolEffect(.variableColor)`: animacja SwiftUI co klatkę
                 // brała ~16% CPU przez cały nasłuch (zmierzone 2026-11-09).
             Text(recorder.isRunning ? "Słucham" : (recorder.isProcessing ? "Pracuję" : "Cisza"))
@@ -514,7 +514,7 @@ struct MainView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(canSend ? M3.color.onPrimary : M3.color.onSurface.opacity(0.38))
                         .frame(width: 36, height: 36)
-                        .background(Circle().fill(canSend ? M3.color.primary : M3.color.onSurface.opacity(0.12)))
+                        .background(RoundedRectangle(cornerRadius: M3.shape.small).fill(canSend ? M3.color.primary : M3.color.onSurface.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
                 .disabled(!canSend)
@@ -581,7 +581,7 @@ struct MainView: View {
                 .font(.system(size: 14))
                 .foregroundStyle(M3.color.onPrimary)
                 .frame(width: 32, height: 32)
-                .background(M3.color.primary, in: Circle())
+                .background(M3.color.primary, in: RoundedRectangle(cornerRadius: M3.shape.small))
             VStack(alignment: .leading, spacing: 2) {
                 Text("Trwa rozmowa w \(meeting)").font(M3.type.titleSmall)
                     .foregroundStyle(M3.color.onSecondaryContainer)
@@ -602,7 +602,7 @@ struct MainView: View {
             if recorder.isProcessing { M3LinearProgress().padding(.horizontal, 16) }
             HStack(spacing: 8) {
                 if recorder.isRunning {
-                    Circle().fill(M3.color.error).frame(width: 8, height: 8)
+                    Circle().fill(M3.color.accent).frame(width: 8, height: 8)
                         .symbolEffect(.pulse)
                 }
                 Text(recorder.status)
@@ -780,7 +780,7 @@ struct SegmentRow: View {
                 ZStack {
                     SpeakerAvatar(name: segment.speaker).opacity(isSelected ? 0 : 1)
                     if isSelected {
-                        Circle().fill(M3.color.primary).frame(width: 40, height: 40)
+                        RoundedRectangle(cornerRadius: M3.shape.small).fill(M3.color.primary).frame(width: 36, height: 36)
                         Image(systemName: "checkmark")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(M3.color.onPrimary)
@@ -852,7 +852,7 @@ struct SpeakerAvatar: View {
             .font(.system(size: 14, weight: .semibold))
             .foregroundStyle(colors.1)
             .frame(width: 36, height: 36)
-            .background(colors.0, in: Circle())
+            .background(colors.0, in: RoundedRectangle(cornerRadius: M3.shape.small))
     }
 
     /// `hashValue` jest losowany per uruchomienie; kolor ma być stały.

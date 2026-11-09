@@ -30,7 +30,7 @@ func runSnapshot(directory: String, file: String?) async -> Int32 {
     for (screen, library) in screens {
         for (name, appearance) in [("jasny", NSAppearance.Name.aqua), ("ciemny", .darkAqua)] {
             // Biblioteka: ta sama prośba, której używa import z Docka.
-            if library { imports.focusRequest = imports.items.first?.id }
+            imports.focusRequest = library ? imports.items.first?.id : nil
             let view = MainView(recorder: recorder, settings: .shared, overlay: OverlayController(),
                                 meetings: MeetingWatcher(), updater: Updater(recorder: recorder),
                                 imports: imports, models: .shared)

@@ -146,52 +146,6 @@ struct MainView: View {
             .buttonStyle(M3RailButtonStyle(selected: screen == .library))
             .help("Zaimportowane nagrania i wideo: odtwarzacz, transkrypt, klatki")
 
-            RailSection("Transkrypt")
-            Button {
-                showAnalysis = true
-            } label: {
-                Label("Analiza", systemImage: recorder.isAnalyzing ? "hourglass" : "list.bullet.clipboard")
-            }
-            .buttonStyle(M3RailButtonStyle(selected: recorder.analysis != nil))
-            .disabled(recorder.segments.isEmpty || recorder.isRunning)
-            .help("Claude Code: podsumowanie, zadania, decyzje i pytania na kolejną rozmowę")
-
-            // Kopiowanie do czatu ma działać także w trakcie rozmowy, więc nie
-            // siedzi w menu eksportu, które jest wtedy wyłączone.
-            Button {
-                copy(recorder.segments, what: "cały transkrypt")
-            } label: {
-                Label("Kopiuj", systemImage: "doc.on.doc")
-            }
-            .buttonStyle(M3RailButtonStyle())
-            .keyboardShortcut("c", modifiers: [.command, .shift])
-            .disabled(recorder.segments.isEmpty)
-            .help("Kopiuj wszystkie wypowiedzi do wklejenia w czat (⌘⇧C)")
-
-            Menu {
-                Button("Kopiuj Markdown") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(recorder.markdown, forType: .string)
-                }
-                Button("Zapisz .md…") { save(recorder.markdown.data(using: .utf8), ext: "md") }
-                Button("Zapisz .json…") { save(recorder.json, ext: "json") }
-                Divider()
-                Button(exportingForClaude ? "Podsumowuję…" : "Kopiuj dla Claude (z podsumowaniem)") {
-                    exportForClaude()
-                }
-                .disabled(exportingForClaude)
-            } label: {
-                Label("Eksport", systemImage: "square.and.arrow.up")
-                    .labelStyle(M3RailLabelStyle())
-            }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .disabled(recorder.segments.isEmpty || recorder.isRunning)
-            .opacity(recorder.segments.isEmpty || recorder.isRunning ? 0.38 : 1)
-            .help("Eksport")
-
             RailSection("Asystent")
             // Podpowiedzi bywają hałasem (film, monolog), więc wyłącznik musi
             // być pod ręką. Wariant „selected" pokazuje stan.
@@ -243,6 +197,7 @@ struct MainView: View {
 
     private var transcriptCard: some View {
         VStack(spacing: 0) {
+            transcriptHeader
             Group {
                 if recorder.segments.isEmpty {
                     emptyState
@@ -324,6 +279,100 @@ struct MainView: View {
         }
         .padding(32)
     }
+
+    /// Nagłówek transkryptu: akcje na tej rozmowie są przy niej, a nie
+    /// w szynie bez kontekstu („co ja mam kopiować?”).
+    private var transcriptHeader: some View {
+        HStack(spacing: 10) {
+            Text("Transkrypt")
+                .font(.custom(BrandFonts.display, size: 20).weight(.semibold)).tracking(-1)
+                .foregroundStyle(M3.color.onSurface)
+                .lineLimit(1).fixedSize()
+            if !recorder.segments.isEmpty {
+                Text("\(recorder.segments.count) \(Self.utterances(recorder.segments.count))")
+                    .font(M3.type.labelSmall).textCase(.uppercase)
+                    .foregroundStyle(M3.color.onSurfaceVariant)
+                    .lineLimit(1).fixedSize()
+            }
+            Spacer(minLength: 8)
+            // W wąskiej karcie same ikony (opis w podpowiedzi po najechaniu).
+            ViewThatFits(in: .horizontal) {
+                transcriptActions(iconsOnly: false)
+                transcriptActions(iconsOnly: true)
+            }
+        }
+        .padding(.leading, 20)
+        .padding(.trailing, 10)
+        .padding(.vertical, 8)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(M3.color.outlineVariant).frame(height: 1)
+        }
+    }
+
+    @ViewBuilder
+    private func transcriptActions(iconsOnly: Bool) -> some View {
+        HStack(spacing: iconsOnly ? 2 : 6) {
+            Button {
+                showAnalysis = true
+            } label: {
+                Label("Analiza", systemImage: recorder.isAnalyzing ? "hourglass" : "list.bullet.clipboard")
+            }
+            .modifier(HeaderAction(iconsOnly: iconsOnly, highlighted: recorder.analysis != nil))
+            .disabled(recorder.segments.isEmpty || recorder.isRunning)
+            .help("Analiza: podsumowanie, zadania, decyzje i pytania na kolejną rozmowę (Claude Code)")
+
+            // Kopiowanie ma działać także w trakcie rozmowy.
+            Button {
+                copy(recorder.segments, what: "cały transkrypt")
+            } label: {
+                Label("Kopiuj", systemImage: "doc.on.doc")
+            }
+            .modifier(HeaderAction(iconsOnly: iconsOnly))
+            .keyboardShortcut("c", modifiers: [.command, .shift])
+            .disabled(recorder.segments.isEmpty)
+            .help("Kopiuj cały transkrypt do wklejenia w czat (⌘⇧C)")
+
+            Menu {
+                Button("Kopiuj Markdown") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(recorder.markdown, forType: .string)
+                }
+                Button("Zapisz .md…") { save(recorder.markdown.data(using: .utf8), ext: "md") }
+                Button("Zapisz .json…") { save(recorder.json, ext: "json") }
+                Divider()
+                Button(exportingForClaude ? "Podsumowuję…" : "Kopiuj dla Claude (z podsumowaniem)") {
+                    exportForClaude()
+                }
+                .disabled(exportingForClaude)
+            } label: {
+                Group {
+                    if iconsOnly {
+                        Image(systemName: "square.and.arrow.up").font(.system(size: 15, weight: .medium))
+                            .frame(width: 32, height: 32)
+                    } else {
+                        Label("Eksport", systemImage: "square.and.arrow.up")
+                            .font(M3.type.labelLarge)
+                            .labelStyle(M3LabelStyle())
+                            .padding(.horizontal, 10)
+                            .frame(height: 32)
+                    }
+                }
+                .foregroundStyle(M3.color.primary)
+                .fixedSize()
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .disabled(recorder.segments.isEmpty || recorder.isRunning)
+            .opacity(recorder.segments.isEmpty || recorder.isRunning ? 0.38 : 1)
+            .help("Eksport: Markdown, JSON albo dla Claude z podsumowaniem")
+        }
+        .fixedSize()
+    }
+
+    /// 1 wypowiedź, 2-4 wypowiedzi, 5+ wypowiedzi (tu forma ta sama poza 1).
+    static func utterances(_ n: Int) -> String { n == 1 ? "wypowiedź" : "wypowiedzi" }
 
     /// Pasek sterowania pod transkryptem: źródła, tryb i „Słuchaj” w jednym
     /// rzędzie. Wcześniej wisiały w trzech rzędach na tekście transkryptu
@@ -904,7 +953,7 @@ struct SegmentRow: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(8)
-        .background(isSelected ? M3.color.secondaryContainer.opacity(0.6) : .clear,
+        .background(isSelected ? M3.color.primaryContainer : .clear,
                     in: RoundedRectangle(cornerRadius: M3.shape.medium))
         .padding(-8)
         .onHover { hovered = $0 }
@@ -1011,5 +1060,21 @@ private struct RailSection: View {
         }
         .frame(width: 80)
         .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// Przycisk w nagłówku transkryptu: tekstowy z ikoną albo sama ikona.
+private struct HeaderAction: ViewModifier {
+    var iconsOnly: Bool
+    var highlighted = false
+
+    func body(content: Content) -> some View {
+        if iconsOnly {
+            content.buttonStyle(M3IconButtonStyle(selected: highlighted))
+        } else {
+            content.buttonStyle(M3ButtonStyle(kind: highlighted ? .tonal : .text, compact: true))
+                .lineLimit(1)
+                .fixedSize()
+        }
     }
 }

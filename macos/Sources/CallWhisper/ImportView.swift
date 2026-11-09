@@ -248,6 +248,8 @@ struct ImportView: View {
                     }
                 } label: {
                     Label("Otwórz w rozmowie", systemImage: "text.bubble")
+                        .lineLimit(1)
+                        .fixedSize()
                 }
                 .buttonStyle(M3ButtonStyle(kind: .tonal, compact: true))
                 .disabled(recorder.isRunning || recorder.isProcessing)
@@ -343,7 +345,7 @@ struct ImportRow: View {
         var parts = [item.createdAt.formatted(date: .abbreviated, time: .shortened)]
         if let duration = item.duration { parts.append(TimeFormat.offset(duration * 1000)) }
         parts.append(ModelDownloader.model(item.model)?.name ?? item.model)
-        if item.speakerCount > 0 { parts.append("\(item.speakerCount) \(item.speakerCount == 1 ? "głos" : "głosy")") }
+        if item.speakerCount > 0 { parts.append("\(item.speakerCount) \(MainView.voices(item.speakerCount))") }
         return parts.joined(separator: " · ")
     }
 
@@ -373,7 +375,7 @@ struct ImportRow: View {
             Spacer(minLength: 0)
         }
         .padding(8)
-        .background(selected ? M3.color.secondaryContainer.opacity(0.6) : .clear,
+        .background(selected ? M3.color.primaryContainer : .clear,
                     in: RoundedRectangle(cornerRadius: M3.shape.medium))
     }
 }
@@ -493,7 +495,7 @@ struct ImportDetail: View {
             Spacer(minLength: 0)
         }
         .padding(8)
-        .background(current ? M3.color.secondaryContainer.opacity(0.6) : .clear,
+        .background(current ? M3.color.primaryContainer : .clear,
                     in: RoundedRectangle(cornerRadius: M3.shape.medium))
         .contentShape(Rectangle())
         .onTapGesture { player.seek(segment.offsetMs / 1000); player.player.play() }

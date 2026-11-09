@@ -18,6 +18,7 @@ struct DictationSettingsView: View {
             Toggle("Dyktuj skrótem do dowolnego pola", isOn: Binding(
                 get: { settings.dictationEnabled }, set: { settings.dictationEnabled = $0 }))
             hotkeySection
+            modelSection
             readinessSection
             testSection
         }
@@ -55,8 +56,8 @@ struct DictationSettingsView: View {
         HStack(spacing: 8) {
             Button(dictation.capturing ? "Naciśnij skrót…" : dictation.hotkey.label, action: toggleCapture)
                 .font(.body.monospaced())
-            if dictation.hotkey != .fn && !dictation.capturing {
-                Button("fn", action: resetHotkey)
+            if dictation.hotkey != .standard && !dictation.capturing {
+                Button("⌘J", action: resetHotkey)
                     .controlSize(.small)
                     .help("Przywróć domyślny skrót")
             }
@@ -71,7 +72,34 @@ struct DictationSettingsView: View {
         if dictation.capturing { dictation.cancelCapture() } else { dictation.beginCapture() }
     }
 
-    private func resetHotkey() { dictation.setHotkey(.fn) }
+    private func resetHotkey() { dictation.setHotkey(.standard) }
+
+    // MARK: - model
+
+    private var modelSection: some View {
+        Section("Model") {
+            Picker("Model", selection: Binding(
+                get: { settings.dictationModel },
+                set: { settings.dictationModel = $0; dictation.modelChanged() })) {
+                ForEach(modelChoices, id: \.self) { id in
+                    Text(modelName(id)).tag(id)
+                }
+            }
+            Text("Osobny od rozmowy, jak w OpenWhisprze. Domyślnie Whisper Turbo: dokładniejszy niż small, a przy krótkich wypowiedziach i tak szybki. Serwer startuje od razu po włączeniu dyktowania i trzyma model w pamięci (~1,6 GB), więc pierwsze dyktowanie nie czeka.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var modelChoices: [String] {
+        _ = models.revision
+        let installed = ModelDownloader.catalog.filter { $0.family == .whisper && models.isInstalled($0.id) }.map(\.id)
+        return installed.contains(settings.dictationModel) ? installed : [settings.dictationModel] + installed
+    }
+
+    private func modelName(_ id: String) -> String {
+        let name = ModelDownloader.model(id)?.name ?? id
+        return models.isInstalled(id) ? name : "\(name) (niepobrany)"
+    }
 
     // MARK: - gotowość
 
@@ -109,16 +137,28 @@ struct DictationSettingsView: View {
             title: "Silnik mowy (whisper-server)", ok: engine, detail: engineDetail,
             actionTitle: engine || installingEngine ? nil : "Pobierz", action: installEngine))
 
-        let model = settings.whisperModel
+        let model = settings.dictationModel
         let installed = models.isInstalled(model)
         let progress = models.progress[model]
         let modelDetail: String
         if installed { modelDetail = "Pobrany." }
         else if let progress { modelDetail = "Pobieram… \(Int(progress * 100))%" }
-        else { modelDetail = "Brak — pobierz albo wybierz inny w zakładce Mowa." }
+        else { modelDetail = "Brak — pobierz albo wybierz inny wyżej." }
         out.append(CheckItem(
             title: "Model whisper \(model)", ok: installed, detail: modelDetail,
             actionTitle: installed || progress != nil ? nil : "Pobierz", action: downloadModel))
+
+        let serverDetail: String
+        switch dictation.serverState {
+        case .off: serverDetail = settings.dictationEnabled ? "Nie działa." : "Startuje po włączeniu dyktowania."
+        case .starting: serverDetail = "Uruchamiam i wczytuję model…"
+        case .ready: serverDetail = "Gotowy — model w pamięci, dyktowanie bez czekania."
+        case .failed(let message): serverDetail = message
+        }
+        let serverIdle = dictation.serverState != .ready && dictation.serverState != .starting
+        out.append(CheckItem(
+            title: "Serwer dyktowania", ok: dictation.serverState == .ready, detail: serverDetail,
+            actionTitle: serverIdle && installed ? "Uruchom" : nil, action: dictation.prewarm))
 
         let enabled = settings.dictationEnabled
         out.append(CheckItem(
@@ -144,7 +184,7 @@ struct DictationSettingsView: View {
         }
     }
 
-    private func downloadModel() { models.download(settings.whisperModel) }
+    private func downloadModel() { models.download(settings.dictationModel) }
 
     // MARK: - próba
 

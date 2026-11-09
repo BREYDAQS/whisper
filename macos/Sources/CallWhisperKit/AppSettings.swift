@@ -118,7 +118,7 @@ public final class AppSettings: ObservableObject {
         case diarizeAfter, detectMeetings, autoStartOnMeeting, followOBS, whisperVocabulary
         case notchIsland, autoUpdate
         case importModel, importDiarize, importSpeakers, parakeetModel, autoAnalyze
-        case dictationEnabled, dictationMode, livePreview, dictationHotkey
+        case dictationEnabled, dictationMode, livePreview, dictationHotkey, dictationModel
     }
 
     /// Domyślny język mowy bierzemy z systemu, a nie na sztywno — inaczej
@@ -329,7 +329,14 @@ public final class AppSettings: ObservableObject {
         set { set(.dictationEnabled, newValue) }
     }
 
-    /// Skrót dyktowania jako JSON (`DictationHotkey` w aplikacji); pusty = fn.
+    /// Model dyktowania — osobny od rozmowy, jak w OpenWhisprze: krótkie
+    /// wypowiedzi, więc stać nas na dokładniejszy model.
+    public var dictationModel: String {
+        get { get(.dictationModel, "large-v3-turbo") }
+        set { set(.dictationModel, newValue) }
+    }
+
+    /// Skrót dyktowania jako JSON (`DictationHotkey` w aplikacji); pusty = ⌘J.
     public var dictationHotkey: String {
         get { get(.dictationHotkey, "") }
         set { set(.dictationHotkey, newValue) }

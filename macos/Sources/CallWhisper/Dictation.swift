@@ -17,6 +17,8 @@ struct DictationHotkey: Codable, Equatable {
     var label: String
 
     static let fn = DictationHotkey(keyCode: nil, modifiers: NSEvent.ModifierFlags.function.rawValue, label: "fn")
+    static let standard = DictationHotkey(keyCode: UInt16(kVK_ANSI_J), modifiers: NSEvent.ModifierFlags.command.rawValue,
+                                          label: "⌘J")
     static let modifierMask: NSEvent.ModifierFlags = [.command, .option, .control, .shift, .function]
     static let comboMask: NSEvent.ModifierFlags = [.command, .option, .control, .shift]
 
@@ -24,7 +26,7 @@ struct DictationHotkey: Codable, Equatable {
     var isModifierOnly: Bool { keyCode == nil }
 
     static func load(_ json: String) -> DictationHotkey {
-        guard let hotkey = try? JSONDecoder().decode(Self.self, from: Data(json.utf8)) else { return .fn }
+        guard let hotkey = try? JSONDecoder().decode(Self.self, from: Data(json.utf8)) else { return .standard }
         return hotkey
     }
 
@@ -72,6 +74,7 @@ struct DictationHotkey: Codable, Equatable {
 @MainActor
 final class DictationController: ObservableObject {
     enum State: Equatable { case idle, recording, transcribing, pasted, error(String) }
+    enum ServerState: Equatable { case off, starting, ready, failed(String) }
     @Published private(set) var state: State = .idle
     @Published private(set) var trusted = AXIsProcessTrusted()
     @Published private(set) var hotkey: DictationHotkey
@@ -83,9 +86,12 @@ final class DictationController: ObservableObject {
     @Published private(set) var captureHint: String?
     @Published private(set) var testing = false
     @Published private(set) var testResult: String?
+    /// Serwer dyktowania. Rozgrzewany od razu po włączeniu — zimny start
+    /// (model + shadery Metal) to ~7 s, których nie może zjeść pierwsze dyktowanie.
+    @Published private(set) var serverState: ServerState = .off
 
     private let settings = AppSettings.shared
-    private let server = WhisperServer()
+    private let whisper = WhisperServer()
     private let pill = DictationPill()
     private var mic: MicrophoneCapture?
     private let buffer = SampleBuffer()
@@ -138,6 +144,7 @@ final class DictationController: ObservableObject {
             requestTrust()
         }
         registerCombo()
+        prewarm()
     }
 
     func stop() {
@@ -151,6 +158,51 @@ final class DictationController: ObservableObject {
         unregisterCombo()
         resetHold()
         if state == .recording { cancelRecording() }
+        // Model dyktowania to 1,6 GB pamięci — wyłączone dyktowanie ją oddaje.
+        serverState = .off
+        Task { await whisper.stop() }
+    }
+
+    // MARK: - serwer
+
+    /// Ten sam model co w rozmowie = ten sam serwer; inny = osobny port.
+    private var port: Int {
+        settings.dictationModel == settings.whisperModel ? settings.whisperPort : settings.whisperPort + 1
+    }
+
+    private var client: WhisperClient {
+        WhisperClient(endpoint: URL(string: "http://127.0.0.1:\(port)")!, language: settings.languageCode)
+    }
+
+    func prewarm() {
+        guard serverState != .starting else { return }
+        serverState = .starting
+        Task {
+            do {
+                try await ensureServer()
+                // Pierwsze zapytanie po starcie przygotowuje Metal — niech to
+                // będzie sekunda ciszy teraz, a nie pierwsze prawdziwe dyktowanie.
+                _ = try? await client.transcribe([Float](repeating: 0, count: Int(asrSampleRate)))
+                serverState = .ready
+            } catch {
+                serverState = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    /// Po zmianie modelu stary serwer trzeba zgasić, inaczej odpowiadałby dalej starym.
+    func modelChanged() {
+        serverState = .off
+        Task {
+            await whisper.stop()
+            if running { prewarm() }
+        }
+    }
+
+    private func ensureServer() async throws {
+        if await client.health() { return }
+        try await whisper.ensureRunning(.init(model: settings.dictationModel, port: port,
+                                              language: settings.languageCode))
     }
 
     /// Systemowe okno z prośbą o „Dostępność" i czekanie, aż zgoda przyjdzie.
@@ -470,13 +522,10 @@ final class DictationController: ObservableObject {
         }
     }
 
-    /// Ten sam serwer co w rozmowie: działający jest użyty, brakujący podniesiony.
+    /// Serwer dyktowania: działający jest użyty, brakujący podniesiony.
     private func transcribe(_ pcm: [Float]) async throws -> String {
-        try await server.ensureRunning(.init(model: settings.whisperModel,
-                                             port: settings.whisperPort,
-                                             language: settings.languageCode))
-        let client = WhisperClient(endpoint: URL(string: "http://127.0.0.1:\(settings.whisperPort)")!,
-                                   language: settings.languageCode)
+        try await ensureServer()
+        serverState = .ready
         return try await client.transcribe(pcm, context: settings.whisperVocabulary)
     }
 

@@ -1424,4 +1424,4 @@ Aplikacja natywna:
 
 Nagrywanie i transkrybowanie rozmowy bywa objęte prawem lokalnym i regulaminem
 organizacji. Poinformuj pozostałych uczestników.
-<!-- bump: 8b722f2 -->
+<!-- bump: 02b23ae -->

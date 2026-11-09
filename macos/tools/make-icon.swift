@@ -1,5 +1,6 @@
-// Generator ikony aplikacji z jednego źródła: icon.png w katalogu repo
-// (maskotka Breydaqs, ta sama ikona co w wersji na Windows).
+// Generator ikony aplikacji z jednego źródła: icon.svg w katalogu repo
+// (maskotka Breydaqs, ta sama ikona co w wersji na Windows); bez SVG —
+// icon.png.
 //
 //   swift macos/tools/make-icon.swift [--master plik.png]
 //
@@ -7,19 +8,21 @@
 // build go nie generuje. `--master` zapisuje dodatkowo kwadrat 1024 px bez
 // marginesu — z niego `cargo tauri icon` robi ikony Windows.
 //
-// Źródło ma ~300 px, a ikony potrzebują 1024. Grafika jest czysto
-// czarno-biała, więc po powiększeniu krawędzie wyostrzamy krzywą na
-// kanałach: bez tego wyszłaby miękka, rozmyta ikona.
+// SVG rysujemy wektorowo w docelowym rozmiarze — ostre na każdym. PNG ma
+// ~300 px, a ikony potrzebują 1024: grafika jest czysto czarno-biała, więc
+// po powiększeniu krawędzie wyostrzamy krzywą na kanałach.
 
 import AppKit
 
 let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-let source = root.deletingLastPathComponent().appendingPathComponent("icon.png")
+let repo = root.deletingLastPathComponent()
+let svg = repo.appendingPathComponent("icon.svg")
+let isVector = FileManager.default.fileExists(atPath: svg.path)
+let source = isVector ? svg : repo.appendingPathComponent("icon.png")
 let iconset = FileManager.default.temporaryDirectory.appendingPathComponent("AppIcon.iconset")
 let output = root.appendingPathComponent("Resources/AppIcon.icns")
 
-guard let image = NSImage(contentsOf: source),
-      let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+guard let image = NSImage(contentsOf: source), image.size.width > 0 else {
     fatalError("Brak \(source.path)")
 }
 
@@ -32,12 +35,16 @@ func render(size: Int, inset: CGFloat) -> CGImage {
     ctx.interpolationQuality = .high
     let side = CGFloat(size) * inset
     // Źródło nie jest idealnym kwadratem (294×295): wpisujemy dłuższy bok.
-    let scale = side / CGFloat(max(cg.width, cg.height))
-    let w = CGFloat(cg.width) * scale, h = CGFloat(cg.height) * scale
-    ctx.draw(cg, in: CGRect(x: (CGFloat(size) - w) / 2, y: (CGFloat(size) - h) / 2, width: w, height: h))
+    let scale = side / max(image.size.width, image.size.height)
+    let w = image.size.width * scale, h = image.size.height * scale
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
+    NSGraphicsContext.current?.imageInterpolation = .high
+    image.draw(in: NSRect(x: (CGFloat(size) - w) / 2, y: (CGFloat(size) - h) / 2, width: w, height: h))
+    NSGraphicsContext.restoreGraphicsState()
 
-    // Wyostrzenie tylko przy powiększaniu: smoothstep wokół połowy jasności.
-    if scale > 1.5, let data = ctx.data {
+    // Wyostrzenie tylko powiększanego PNG: smoothstep wokół połowy jasności.
+    if !isVector, scale > 1.5, let data = ctx.data {
         let px = data.bindMemory(to: UInt8.self, capacity: size * size * 4)
         func sharpen(_ v: Double) -> Double {
             let t = min(max((v - 0.3) / 0.4, 0), 1)
@@ -79,7 +86,7 @@ task.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
 task.arguments = ["-c", "icns", iconset.path, "-o", output.path]
 try! task.run()
 task.waitUntilExit()
-print("Zapisano \(output.path)")
+print("Zapisano \(output.path) (źródło: \(source.lastPathComponent))")
 
 if let i = CommandLine.arguments.firstIndex(of: "--master"), CommandLine.arguments.count > i + 1 {
     let url = URL(fileURLWithPath: CommandLine.arguments[i + 1])

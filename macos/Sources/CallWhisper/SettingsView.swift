@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 import CallWhisperKit
 import CallWhisperCore
 
@@ -22,6 +23,8 @@ struct SettingsView: View {
     /// Keychaina trafiały niepełne klucze.
     @State private var keyDraft = ""
     @State private var keySaved: Bool?
+    @State private var loginItem = LoginItem.isEnabled
+    @State private var loginItemNote: String?
 
     private var obsStatus: String {
         switch obs.state {
@@ -52,6 +55,15 @@ struct SettingsView: View {
             TextField("Tytuł rozmowy", text: Binding(
                 get: { settings.title }, set: { settings.title = $0 }))
                 .help("Trafia do nagłówka i frontmattera pliku .md")
+
+            Toggle("Uruchamiaj przy logowaniu", isOn: Binding(
+                get: { loginItem }, set: { setLoginItem($0) }))
+            if let loginItemNote {
+                HStack {
+                    Text(loginItemNote).font(.caption).foregroundStyle(.orange)
+                    Button("Otwórz") { SMAppService.openSystemSettingsLoginItems() }.controlSize(.small)
+                }
+            }
 
             Section("Kontekst projektu") {
                 LabeledContent("Plik") {
@@ -385,6 +397,17 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
+    }
+
+    private func setLoginItem(_ enabled: Bool) {
+        do {
+            try LoginItem.set(enabled)
+            loginItemNote = LoginItem.status == .requiresApproval
+                ? "Zatwierdź w Ustawieniach systemowych → Rzeczy otwierane podczas logowania." : nil
+        } catch {
+            loginItemNote = error.localizedDescription
+        }
+        loginItem = LoginItem.isEnabled
     }
 
     private func saveKey() {

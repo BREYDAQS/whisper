@@ -49,6 +49,24 @@ func runSnapshot(directory: String, file: String?) async -> Int32 {
             print(path.path)
         }
     }
+    // Sama Biblioteka (także pusta — przez MainView pusta się nie pokaże).
+    for (name, appearance) in [("jasny", NSAppearance.Name.aqua), ("ciemny", .darkAqua)] {
+        let host = NSHostingView(rootView: ImportView(imports: imports, models: .shared, settings: .shared,
+                                                      recorder: recorder, selection: .constant(nil), onOpen: {})
+            .padding(16).background(M3.color.page).frame(width: 980, height: 620))
+        host.frame = NSRect(x: 0, y: 0, width: 980, height: 620)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: appearance)
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        try? await Task.sleep(for: .milliseconds(600))
+        guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return 1 }
+        host.cacheDisplay(in: host.bounds, to: rep)
+        let path = out.appendingPathComponent("biblioteka-sama-\(name).png")
+        try? rep.representation(using: .png, properties: [:])?.write(to: path)
+        print(path.path)
+    }
+
     // Zakładka Dyktowanie z Ustawień: skrót, gotowość, próba.
     let dictation = DictationController()
     for (name, appearance) in [("jasny", NSAppearance.Name.aqua), ("ciemny", .darkAqua)] {

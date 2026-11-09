@@ -113,35 +113,57 @@ struct ImportView: View {
 
     /// Ustawienia kolejnych importów: model i podział na głosy.
     private var options: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Picker("Model", selection: Binding(get: { settings.importModel }, set: { settings.importModel = $0 })) {
-                ForEach(ModelDownloader.catalog) { model in
-                    Text(models.isInstalled(model.id) ? model.name : "\(model.name) — pobierze się")
-                        .tag(model.id)
-                }
-                // Model wgrany ręcznie, spoza katalogu.
-                if ModelDownloader.model(settings.importModel) == nil {
-                    Text(settings.importModel).tag(settings.importModel)
-                }
-            }
-            .font(M3.type.bodySmall)
-            HStack {
-                Toggle("Rozpoznawaj głosy", isOn: Binding(get: { settings.importDiarize },
-                                                         set: { settings.importDiarize = $0 }))
-                    .font(M3.type.bodySmall)
-                Spacer()
-                Picker("", selection: Binding(get: { settings.importSpeakers }, set: { settings.importSpeakers = $0 })) {
-                    Text("osób: auto").tag(0)
-                    ForEach(1...10, id: \.self) { Text("osób: \($0)").tag($0) }
+        // Pod sobą: etykieta mono nad kontrolką, jak sekcje w szynie.
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                optionLabel("Model")
+                Picker("Model", selection: Binding(get: { settings.importModel }, set: { settings.importModel = $0 })) {
+                    ForEach(ModelDownloader.catalog) { model in
+                        Text(models.isInstalled(model.id) ? model.name : "\(model.name) — pobierze się")
+                            .tag(model.id)
+                    }
+                    // Model wgrany ręcznie, spoza katalogu.
+                    if ModelDownloader.model(settings.importModel) == nil {
+                        Text(settings.importModel).tag(settings.importModel)
+                    }
                 }
                 .labelsHidden()
-                .fixedSize()
-                .disabled(!settings.importDiarize)
-                .help("Znana liczba osób poprawia podział na głosy")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                optionLabel("Głosy")
+                Toggle("Rozpoznawaj, kto mówi", isOn: Binding(get: { settings.importDiarize },
+                                                              set: { settings.importDiarize = $0 }))
+                    .font(M3.type.bodyMedium)
+                if settings.importDiarize {
+                    HStack {
+                        Text("Liczba osób")
+                            .font(M3.type.bodyMedium)
+                            .foregroundStyle(M3.color.onSurfaceVariant)
+                        Spacer()
+                        Picker("Liczba osób", selection: Binding(get: { settings.importSpeakers },
+                                                                  set: { settings.importSpeakers = $0 })) {
+                            Text("auto").tag(0)
+                            ForEach(1...10, id: \.self) { Text("\($0)").tag($0) }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+                        .help("Znana liczba osób poprawia podział na głosy")
+                    }
+                }
             }
         }
-        .padding(10)
+        .padding(12)
         .background(M3.color.cardInset, in: RoundedRectangle(cornerRadius: M3.shape.medium))
+    }
+
+    private func optionLabel(_ text: String) -> some View {
+        Text(text)
+            .font(M3.type.labelSmall)
+            .textCase(.uppercase)
+            .tracking(0.6)
+            .foregroundStyle(M3.color.accent)
     }
 
     @ViewBuilder private func rowMenu(_ item: ImportItem) -> some View {

@@ -34,6 +34,8 @@ struct ModelsSettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(M3.color.page)
         .padding()
     }
 

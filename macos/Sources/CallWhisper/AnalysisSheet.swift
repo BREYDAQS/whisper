@@ -19,7 +19,7 @@ struct AnalysisSheet: View {
                 Image(systemName: "list.bullet.clipboard")
                     .font(.system(size: 22))
                     .foregroundStyle(M3.color.primary)
-                Text("Analiza").font(M3.type.headlineSmall).foregroundStyle(M3.color.onSurface)
+                Text("Analiza").font(M3.type.headlineSmall).tracking(-1.4).foregroundStyle(M3.color.onSurface)
                 Text(title).font(M3.type.bodyMedium).foregroundStyle(M3.color.onSurfaceVariant).lineLimit(1)
             }
             .padding(24)

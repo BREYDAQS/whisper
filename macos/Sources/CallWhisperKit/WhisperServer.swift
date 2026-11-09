@@ -105,7 +105,8 @@ public actor WhisperServer {
             let parts = line.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
             guard parts.count == 3, let pid = pid_t(parts[0]), parts[1] == "1" else { continue }
             let path = String(parts[2])
-            guard path.hasSuffix("/whisper-server"), path.lowercased().contains("call-whisper") else { continue }
+            let lower = path.lowercased()
+            guard path.hasSuffix("/whisper-server"), lower.contains("call-whisper") || lower.contains("brqs-whisper") else { continue }
             if kill(pid, SIGTERM) == 0 { killed += 1 }
         }
         return killed

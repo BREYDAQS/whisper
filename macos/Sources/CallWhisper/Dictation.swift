@@ -760,9 +760,9 @@ private struct PillView: View {
         HStack(spacing: 8) {
             switch model.state {
             case .recording:
-                Circle().fill(.red).frame(width: 8, height: 8)
+                Circle().fill(M3.color.accent).frame(width: 8, height: 8)
                 Text("Słucham…")
-                Text(model.hotkey).foregroundStyle(.white.opacity(0.6))
+                Text(model.hotkey).font(.custom(BrandFonts.mono, size: 11).weight(.medium)).foregroundStyle(.white.opacity(0.6))
                 muteButton
             case .transcribing:
                 // Statyczna ikona zamiast `ProgressView`: kręciołek SwiftUI
@@ -779,18 +779,19 @@ private struct PillView: View {
                 EmptyView()
             }
         }
-        .font(.callout.weight(.medium))
-        .foregroundStyle(.white)
-        .padding(.horizontal, 14)
+        .font(.custom(BrandFonts.sans, size: 14).weight(.semibold))
+        .foregroundStyle(M3.color.light)
+        .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Capsule().fill(.black.opacity(0.8)))
+        // Ciemna jak sekcje strony Breydaqs, prawie kwadratowe rogi.
+        .background(RoundedRectangle(cornerRadius: M3.shape.large).fill(M3.color.dark.opacity(0.94)))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var muteButton: some View {
         Button(action: model.onToggleMute) {
             Image(systemName: model.muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                .foregroundStyle(model.muted ? Color.orange : Color.white.opacity(0.8))
+                .foregroundStyle(model.muted ? M3.color.accent : Color.white.opacity(0.8))
                 .frame(width: 22, height: 22)
                 .contentShape(Rectangle())
         }

@@ -80,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         // „Sam dźwięk": OBS nagrywa po swojemu, nasłuch się nie wtrąca.
         guard settings.followOBS else { return }
         guard !recorder.isRunning, !recorder.isProcessing else {
-            notify("OBS nagrywa, ale call-whisper już słucha",
+            notify("OBS nagrywa, ale brqs-whisper już słucha",
                    body: "Czasy w transkrypcie nie pokryją się z filmem. Zatrzymaj nasłuch i zacznij nagranie od nowa.",
                    action: false)
             return
@@ -122,7 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             if settings.autoStartOnMeeting {
                 autoStarted = true
                 Task { await recorder.start() }
-                notify("Słucham rozmowy w \(app)", body: "Transkrypt zbiera się w call-whisper.", action: false)
+                notify("Słucham rozmowy w \(app)", body: "Transkrypt zbiera się w brqs-whisper.", action: false)
             } else {
                 notify("Wykryto rozmowę w \(app)", body: "Zapisać transkrypt?", action: true)
             }
@@ -172,7 +172,7 @@ struct CallWhisperApp: App {
     private var recorder: Recorder { delegate.recorder }
 
     var body: some Scene {
-        Window("call-whisper", id: "main") {
+        Window("brqs-whisper", id: "main") {
             MainView(recorder: recorder, settings: settings, overlay: overlay, meetings: delegate.meetings,
                      updater: delegate.updater, imports: delegate.imports, models: .shared)
                 .frame(minWidth: 720, minHeight: 500)

@@ -43,6 +43,8 @@ struct DictationSettingsView: View {
             testSection
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(M3.color.page)
         .onAppear { refresh += 1 }
         .onDisappear { if dictation.capturing { dictation.cancelCapture() } }
     }

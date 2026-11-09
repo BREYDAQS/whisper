@@ -453,7 +453,7 @@ struct NotchIslandView: View {
             HStack(spacing: 6) {
                 statusDot
                 if expanded || !geometry.hasNotch {
-                    Text(statusText).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.8))
+                    Text(statusText).font(.custom(BrandFonts.mono, size: 10.5).weight(.medium)).textCase(.uppercase).foregroundStyle(.white.opacity(0.8))
                         .lineLimit(1).fixedSize()
                 }
             }
@@ -485,10 +485,10 @@ struct NotchIslandView: View {
         if thinking {
             Image(systemName: "sparkles")
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color(red: 0.55, green: 0.75, blue: 1))
+                .foregroundStyle(M3.color.accent)
         } else {
             Circle()
-                .fill(model.running ? Color.red : Color.gray)
+                .fill(model.running ? M3.color.accent : Color.gray)
                 .frame(width: 7, height: 7)
                 .shadow(color: model.running ? .red.opacity(0.7) : .clear, radius: 4)
         }
@@ -506,7 +506,7 @@ struct NotchIslandView: View {
     private var clock: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             Text(elapsed(at: context.date))
-                .font(.system(size: 11, weight: .medium).monospacedDigit())
+                .font(.custom(BrandFonts.mono, size: 11).weight(.medium).monospacedDigit())
                 .foregroundStyle(.white.opacity(model.running ? 0.8 : 0.4))
         }
     }
@@ -522,7 +522,7 @@ struct NotchIslandView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(item.question)
-                    .font(.system(size: 12))
+                    .font(.custom(BrandFonts.sans, size: 12.5).weight(.semibold))
                     .foregroundStyle(.white.opacity(0.55))
                     .lineLimit(2)
                 Spacer(minLength: 8)
@@ -536,13 +536,13 @@ struct NotchIslandView: View {
                     case .pending:
                         // `ProgressView` na czarnym tle jest prawie niewidoczny.
                         Text("Składam odpowiedź z kontekstu…")
-                            .font(.system(size: 14))
+                            .font(.custom(BrandFonts.sans, size: 14).weight(.medium))
                             .foregroundStyle(.white.opacity(0.45))
                     case .error:
                         Text(item.error ?? "Błąd").foregroundStyle(.orange)
                     default:
                         // Duża czcionka: to się czyta na głos, zerkając.
-                        MarkdownText(text: item.answer, font: .system(size: 16, weight: .regular))
+                        MarkdownText(text: item.answer, font: .custom(BrandFonts.sans, size: 16.5).weight(.medium))
                             .foregroundStyle(.white)
                     }
                 }

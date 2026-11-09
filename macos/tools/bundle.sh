@@ -8,7 +8,9 @@ set -euo pipefail
 
 CONFIG="${1:-release}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP="$ROOT/build/call-whisper.app"
+APP="$ROOT/build/brqs-whisper.app"
+# Dawna nazwa paczki — zostawiona obok myliłaby Docka i Spotlight.
+rm -rf "$ROOT/build/call-whisper.app"
 BUNDLE_ID="ai.callwhisper.mac"
 
 cd "$ROOT"
@@ -50,8 +52,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>call-whisper</string>
-  <key>CFBundleDisplayName</key><string>call-whisper</string>
+  <key>CFBundleName</key><string>brqs-whisper</string>
+  <key>CFBundleDisplayName</key><string>brqs-whisper</string>
   <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
   <key>CFBundleExecutable</key><string>call-whisper</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>

@@ -1,85 +1,88 @@
-// Generator ikony aplikacji: rysuje ją w CoreGraphics i składa AppIcon.icns
-// przez iconutil. Ten sam motyw co ikona rozszerzenia (tools/make-icons.mjs):
-// fala z pięciu słupków na niebieskim tle, tylko w proporcjach macOS.
+// Generator ikony aplikacji z jednego źródła: icon.png w katalogu repo
+// (maskotka Breydaqs, ta sama ikona co w wersji na Windows).
 //
-//   swift macos/tools/make-icon.swift
+//   swift macos/tools/make-icon.swift [--master plik.png]
 //
 // Wynik trafia do macos/Resources/AppIcon.icns i jest w repo, więc zwykły
-// build go nie generuje.
+// build go nie generuje. `--master` zapisuje dodatkowo kwadrat 1024 px bez
+// marginesu — z niego `cargo tauri icon` robi ikony Windows.
+//
+// Źródło ma ~300 px, a ikony potrzebują 1024. Grafika jest czysto
+// czarno-biała, więc po powiększeniu krawędzie wyostrzamy krzywą na
+// kanałach: bez tego wyszłaby miękka, rozmyta ikona.
 
 import AppKit
 
 let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+let source = root.deletingLastPathComponent().appendingPathComponent("icon.png")
 let iconset = FileManager.default.temporaryDirectory.appendingPathComponent("AppIcon.iconset")
 let output = root.appendingPathComponent("Resources/AppIcon.icns")
 
-/// Wysokości słupków fali (ułamek boku kafla), jak w ikonie rozszerzenia.
-let bars: [CGFloat] = [0.28, 0.52, 0.86, 0.62, 0.34]
-
-func rgb(_ hex: UInt32) -> CGColor {
-    CGColor(srgbRed: CGFloat((hex >> 16) & 0xff) / 255,
-            green: CGFloat((hex >> 8) & 0xff) / 255,
-            blue: CGFloat(hex & 0xff) / 255, alpha: 1)
+guard let image = NSImage(contentsOf: source),
+      let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+    fatalError("Brak \(source.path)")
 }
 
-func render(_ size: Int) -> Data {
-    let s = CGFloat(size)
-    let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+/// Kafel `size`×`size`, grafika wpisana w środek na `inset` boku (reszta
+/// przezroczysta), skalowana wysoką jakością i wyostrzona.
+func render(size: Int, inset: CGFloat) -> CGImage {
+    let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: size * 4,
                         space: CGColorSpace(name: CGColorSpace.sRGB)!,
                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    ctx.interpolationQuality = .high
+    let side = CGFloat(size) * inset
+    // Źródło nie jest idealnym kwadratem (294×295): wpisujemy dłuższy bok.
+    let scale = side / CGFloat(max(cg.width, cg.height))
+    let w = CGFloat(cg.width) * scale, h = CGFloat(cg.height) * scale
+    ctx.draw(cg, in: CGRect(x: (CGFloat(size) - w) / 2, y: (CGFloat(size) - h) / 2, width: w, height: h))
 
-    // Siatka ikon macOS: kafel 824/1024 wyśrodkowany, róg ~22,5% kafla.
-    let tile = s * 824 / 1024
-    let rect = CGRect(x: (s - tile) / 2, y: (s - tile) / 2, width: tile, height: tile)
-    let shape = CGPath(roundedRect: rect, cornerWidth: tile * 0.225, cornerHeight: tile * 0.225, transform: nil)
-
-    ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: -s * 0.012), blur: s * 0.03,
-                  color: CGColor(gray: 0, alpha: 0.35))
-    ctx.addPath(shape)
-    ctx.setFillColor(rgb(0x0B57D0))
-    ctx.fillPath()
-    ctx.restoreGState()
-
-    // Gradient od jaśniejszego niebieskiego u góry: M3 primary 0B57D0.
-    ctx.saveGState()
-    ctx.addPath(shape)
-    ctx.clip()
-    let gradient = CGGradient(colorsSpace: nil, colors: [rgb(0x4C8DF6), rgb(0x0B57D0)] as CFArray,
-                              locations: [0, 1])!
-    ctx.drawLinearGradient(gradient, start: CGPoint(x: 0, y: rect.maxY), end: CGPoint(x: 0, y: rect.minY), options: [])
-    ctx.restoreGState()
-
-    // Fala: zaokrąglone słupki, wyśrodkowane w pionie.
-    let barWidth = tile * 0.085
-    let gap = tile * 0.06
-    let total = CGFloat(bars.count) * barWidth + CGFloat(bars.count - 1) * gap
-    var x = rect.midX - total / 2
-    ctx.setFillColor(CGColor(gray: 1, alpha: 1))
-    for fraction in bars {
-        let height = fraction * tile * 0.62
-        let bar = CGRect(x: x, y: rect.midY - height / 2, width: barWidth, height: height)
-        ctx.addPath(CGPath(roundedRect: bar, cornerWidth: barWidth / 2, cornerHeight: barWidth / 2, transform: nil))
-        x += barWidth + gap
+    // Wyostrzenie tylko przy powiększaniu: smoothstep wokół połowy jasności.
+    if scale > 1.5, let data = ctx.data {
+        let px = data.bindMemory(to: UInt8.self, capacity: size * size * 4)
+        func sharpen(_ v: Double) -> Double {
+            let t = min(max((v - 0.3) / 0.4, 0), 1)
+            return t * t * (3 - 2 * t)
+        }
+        for i in stride(from: 0, to: size * size * 4, by: 4) {
+            let a = Double(px[i + 3]) / 255
+            guard a > 0 else { continue }
+            let na = sharpen(a)
+            for c in 0..<3 {
+                // kanały są przemnożone przez alfę — odwracamy, ostrzymy, mnożymy z nową
+                let v = min(Double(px[i + c]) / 255 / a, 1)
+                px[i + c] = UInt8((sharpen(v) * na * 255).rounded())
+            }
+            px[i + 3] = UInt8((na * 255).rounded())
+        }
     }
-    ctx.fillPath()
-
-    let rep = NSBitmapImageRep(cgImage: ctx.makeImage()!)
-    return rep.representation(using: .png, properties: [:])!
+    return ctx.makeImage()!
 }
 
+func write(_ image: CGImage, to url: URL) {
+    let rep = NSBitmapImageRep(cgImage: image)
+    try! rep.representation(using: .png, properties: [:])!.write(to: url)
+}
+
+// macOS: siatka Apple — kafel 824 w płótnie 1024, żeby ikona w Docku miała
+// ten sam rozmiar co inne aplikacje.
 try? FileManager.default.removeItem(at: iconset)
-try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
+try! FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
 for base in [16, 32, 128, 256, 512] {
-    try render(base).write(to: iconset.appendingPathComponent("icon_\(base)x\(base).png"))
-    try render(base * 2).write(to: iconset.appendingPathComponent("icon_\(base)x\(base)@2x.png"))
+    for scale in [1, 2] {
+        let suffix = scale == 2 ? "@2x" : ""
+        write(render(size: base * scale, inset: 824.0 / 1024.0),
+              to: iconset.appendingPathComponent("icon_\(base)x\(base)\(suffix).png"))
+    }
 }
-try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
-
-let iconutil = Process()
-iconutil.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
-iconutil.arguments = ["-c", "icns", iconset.path, "-o", output.path]
-try iconutil.run()
-iconutil.waitUntilExit()
-guard iconutil.terminationStatus == 0 else { fatalError("iconutil: \(iconutil.terminationStatus)") }
+let task = Process()
+task.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
+task.arguments = ["-c", "icns", iconset.path, "-o", output.path]
+try! task.run()
+task.waitUntilExit()
 print("Zapisano \(output.path)")
+
+if let i = CommandLine.arguments.firstIndex(of: "--master"), CommandLine.arguments.count > i + 1 {
+    let url = URL(fileURLWithPath: CommandLine.arguments[i + 1])
+    write(render(size: 1024, inset: 1), to: url)
+    print("Zapisano \(url.path)")
+}

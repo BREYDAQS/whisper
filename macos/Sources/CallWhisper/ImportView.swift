@@ -170,7 +170,7 @@ struct ImportView: View {
                         .foregroundStyle(M3.color.onPrimaryContainer)
                         .frame(width: 72, height: 72)
                         .background(M3.color.primaryContainer, in: Circle())
-                    Text("Import nagrań i wideo").font(M3.type.headlineSmall).foregroundStyle(M3.color.onSurface)
+                    Text("Import nagrań i wideo").font(M3.type.headlineSmall).tracking(-1.4).foregroundStyle(M3.color.onSurface)
                     Text("Transkrypcja z podziałem na osoby, odtwarzacz zsynchronizowany z tekstem i zrzuty klatek. Wszystko lokalnie.")
                         .font(M3.type.bodyMedium)
                         .foregroundStyle(M3.color.onSurfaceVariant)

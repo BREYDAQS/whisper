@@ -102,8 +102,9 @@ struct MainView: View {
             Image(systemName: "waveform")
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(M3.color.accent)
-            Text(screen == .library ? "Biblioteka importów" : (recorder.importedMeta?.title ?? "call-whisper"))
+            Text(screen == .library ? "Biblioteka importów" : (recorder.importedMeta?.title ?? "brqs-whisper"))
                 .font(M3.type.titleLarge)
+                .tracking(-1)
                 .foregroundStyle(M3.color.onSurface)
                 .lineLimit(1)
                 .padding(.leading, 6)
@@ -306,6 +307,7 @@ struct MainView: View {
                 // brała ~16% CPU przez cały nasłuch (zmierzone 2026-11-09).
             Text(recorder.isRunning ? "Słucham" : (recorder.isProcessing ? "Pracuję" : "Cisza"))
                 .font(M3.type.headlineSmall)
+                .tracking(-1.4)
                 .foregroundStyle(M3.color.onSurface)
             Text(recorder.isRunning
                  ? "Tekst pojawi się, gdy ktoś powie coś dłuższego."
@@ -438,12 +440,17 @@ struct MainView: View {
     private var assistantCard: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Podpowiedzi").font(M3.type.titleMedium).foregroundStyle(M3.color.onSurface)
+                Text("Podpowiedzi").font(.custom(BrandFonts.display, size: 20).weight(.semibold)).tracking(-1)
+                    .foregroundStyle(M3.color.onSurface)
                 Spacer()
-                Text(assistantLabel)
-                    .font(M3.type.labelSmall)
-                    .foregroundStyle(M3.color.onSurfaceVariant)
-                    .lineLimit(1)
+                // Etykieta z kropką jak na stronie Breydaqs (Label).
+                HStack(spacing: 6) {
+                    Circle().fill(M3.color.onSurfaceVariant.opacity(0.5)).frame(width: 6, height: 6)
+                    Text(assistantLabel).textCase(.uppercase)
+                }
+                .font(M3.type.labelSmall)
+                .foregroundStyle(M3.color.onSurfaceVariant)
+                .lineLimit(1)
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)

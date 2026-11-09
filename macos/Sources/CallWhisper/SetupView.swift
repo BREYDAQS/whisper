@@ -18,7 +18,7 @@ struct SetupView: View {
                 Image(systemName: recorder.readiness.allGood ? "checkmark.seal.fill" : "wrench.and.screwdriver.fill")
                     .font(.system(size: 22))
                     .foregroundStyle(M3.color.primary)
-                Text("Gotowość").font(M3.type.headlineSmall).foregroundStyle(M3.color.onSurface)
+                Text("Gotowość").font(M3.type.headlineSmall).tracking(-1.4).foregroundStyle(M3.color.onSurface)
                 Text(recorder.readiness.allGood
                      ? "Wszystko na miejscu, możesz zaczynać."
                      : "Kilku rzeczy jeszcze brakuje. Większość aplikacja załatwi sama.")

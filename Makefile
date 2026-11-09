@@ -1,4 +1,4 @@
-APP := macos/build/call-whisper.app
+APP := macos/build/brqs-whisper.app
 BIN := $(APP)/Contents/MacOS/call-whisper
 
 .PHONY: dev prod build-dev build-prod test

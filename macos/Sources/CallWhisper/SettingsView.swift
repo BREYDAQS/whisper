@@ -30,7 +30,7 @@ struct SettingsView: View {
         case .serverDisabled: return "W OBS włącz serwer: Narzędzia → Ustawienia serwera WebSocket → Włącz serwer WebSocket"
         case .wrongPassword: return "OBS odrzucił hasło. Zapisz ustawienia serwera WebSocket w OBS jeszcze raz."
         case .connected: return "Połączono z OBS"
-        case .recording: return "OBS nagrywa, call-whisper słucha"
+        case .recording: return "OBS nagrywa, brqs-whisper słucha"
         }
     }
 
@@ -45,6 +45,8 @@ struct SettingsView: View {
                 .tabItem { Label("Dyktowanie", systemImage: "mic") }
         }
         .frame(width: 500)
+        .font(M3.type.bodyMedium)
+        .tint(M3.color.primary)
         .task { await refreshModelStatus() }
         .onAppear { keyDraft = settings.apiKey }
     }
@@ -139,6 +141,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(M3.color.page)
         .padding()
     }
 
@@ -243,6 +247,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(M3.color.page)
         .padding()
         .task { await refreshWhisperStatus() }
     }
@@ -345,6 +351,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(M3.color.page)
         .padding()
     }
 

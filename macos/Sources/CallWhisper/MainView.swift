@@ -140,17 +140,6 @@ struct MainView: View {
             .buttonStyle(M3RailButtonStyle(selected: screen == .library))
             .help("Zaimportowane nagrania i wideo: odtwarzacz, transkrypt, klatki")
 
-            Button {
-                if recorder.isProcessing { recorder.cancelProcessing() } else { ImportPanel.run(imports) }
-            } label: {
-                Label(recorder.isProcessing ? "Przerwij" : "Importuj",
-                      systemImage: recorder.isProcessing ? "xmark" : "square.and.arrow.down")
-            }
-            .buttonStyle(M3RailButtonStyle())
-            .help(recorder.isProcessing
-                  ? "Przerwij rozpoznawanie głosów"
-                  : "Transkrybuj nagranie albo wideo (\(MediaImport.fileExtensions.joined(separator: ", "))). Można też upuścić plik na transkrypt.")
-
             RailSection("Transkrypt")
             Button {
                 showAnalysis = true
@@ -648,6 +637,13 @@ struct MainView: View {
                     .font(M3.type.labelMedium)
                     .foregroundStyle(M3.color.onSurfaceVariant)
                     .lineLimit(1)
+                // Przerwanie długiej pracy (rozpoznawanie głosów) — wcześniej
+                // siedziało w szynie pod „Importuj”, którego już tam nie ma.
+                if recorder.isProcessing {
+                    Button("Przerwij") { recorder.cancelProcessing() }
+                        .buttonStyle(M3ButtonStyle(kind: .text, compact: true))
+                        .help("Przerwij rozpoznawanie głosów")
+                }
                 if (settings.identifySpeakers || settings.diarizeAfter) && recorder.speakerCount > 0 {
                     M3Chip(text: "\(recorder.speakerCount) \(Self.voices(recorder.speakerCount))",
                            systemImage: "person.2.fill")
@@ -962,10 +958,10 @@ private struct RailSection: View {
                     .padding(.top, 6)
             }
             Text(title)
-                .font(.custom(BrandFonts.mono, size: 9).weight(.medium))
+                .font(.custom(BrandFonts.mono, size: 10).weight(.bold))
                 .textCase(.uppercase)
-                .tracking(0.4)
-                .foregroundStyle(M3.color.onSurfaceVariant.opacity(0.7))
+                .tracking(0.6)
+                .foregroundStyle(M3.color.accent)
         }
         .frame(width: 80)
         .accessibilityAddTraits(.isHeader)

@@ -494,7 +494,6 @@ if let path = flagValue("--import") {
     exit(await runImport(path: path, diarize: flagValue("--speakers") != nil,
                          speakers: flagValue("--speakers").flatMap(Int.init), model: flagValue("--model")))
 }
-if let value = flagValue("--login-item") { exit(runLoginItem(value)) }
 if let path = flagValue("--pipeline") { exit(await runPipeline(path: path)) }
 if arguments.contains("--ask-seq") { exit(await runAskSequence()) }
 if let i = arguments.firstIndex(of: "--ask-image"), arguments.count > i + 2 {

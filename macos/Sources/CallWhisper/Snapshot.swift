@@ -16,9 +16,11 @@ func runSnapshot(directory: String, file: String?) async -> Int32 {
 
     let recorder = Recorder()
     let imports = ImportCenter()
+    var importedID: String?
     if let file {
         // Prawdziwy import do biblioteki — tak jak z okna.
         let id = imports.enqueue(URL(fileURLWithPath: file))
+        importedID = id
         while imports.item(id)?.status == .pending { try? await Task.sleep(for: .milliseconds(200)) }
         if let t = imports.transcript(id) { recorder.show(meta: t.meta, segments: t.segments) }
     }
@@ -100,6 +102,10 @@ func runSnapshot(directory: String, file: String?) async -> Int32 {
         print(path.path)
     }
     await snapshotNotch(into: out)
+    // Import z --snapshot ląduje w prawdziwej bibliotece użytkownika (te same
+    // foldery danych) — sprzątamy po sobie, żeby test nie zostawiał wpisów.
+    // Tylko wpis utworzony tutaj — nagrań użytkownika nie ruszamy.
+    if let importedID { imports.delete(importedID) }
     return 0
 }
 

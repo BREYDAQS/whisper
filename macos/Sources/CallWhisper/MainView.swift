@@ -108,7 +108,7 @@ struct MainView: View {
             Image(systemName: "waveform")
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(M3.color.accent)
-            Text(screen == .library ? "Biblioteka importów" : (recorder.importedMeta?.title ?? "brqs-whisper"))
+            Text(screen == .library ? "Nagrania" : (recorder.importedMeta?.title ?? "brqs-whisper"))
                 .font(M3.type.titleLarge)
                 .tracking(-1)
                 .foregroundStyle(M3.color.onSurface)
@@ -128,7 +128,7 @@ struct MainView: View {
     /// każda grupa z małą etykietą mono jak na stronie Breydaqs.
     private var navigationRail: some View {
         VStack(spacing: 8) {
-            RailSection("Nagrania")
+            RailSection("Rozmowy")
             Button {
                 screen = .live
             } label: {
@@ -140,7 +140,7 @@ struct MainView: View {
             Button {
                 screen = .library
             } label: {
-                Label(imports.activeID == nil ? "Biblioteka" : "Importuję",
+                Label(imports.activeID == nil ? "Nagrania" : "Importuję",
                       systemImage: imports.activeID == nil ? "film.stack" : "arrow.down.circle.dotted")
             }
             .buttonStyle(M3RailButtonStyle(selected: screen == .library))
@@ -1048,7 +1048,7 @@ private struct RailSection: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            if title != "Nagrania" {
+            if title != "Rozmowy" {
                 Rectangle().fill(M3.color.outlineVariant).frame(width: 40, height: 1)
                     .padding(.top, 6)
             }

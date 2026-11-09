@@ -509,7 +509,7 @@ public final class Recorder: ObservableObject {
         let speakers = Set(segments.map(\.speaker)).count
         speakerCount = speakers > 1 ? speakers : 0
         lastError = nil
-        status = "Z biblioteki: \(meta.title) · \(segments.count) \(segments.count == 1 ? "wypowiedź" : "wypowiedzi")"
+        status = "Z nagrań: \(meta.title) · \(segments.count) \(segments.count == 1 ? "wypowiedź" : "wypowiedzi")"
     }
 
     /// Czeka, aż skończy się praca po rozmowie (diaryzacja), żeby zapisany

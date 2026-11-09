@@ -66,7 +66,7 @@ struct ImportView: View {
     private var libraryColumn: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Biblioteka").font(M3.type.titleMedium).foregroundStyle(M3.color.onSurface)
+                Text("Nagrania").font(M3.type.titleMedium).foregroundStyle(M3.color.onSurface)
                 Spacer()
                 Button {
                     ImportPanel.run(imports)
@@ -177,7 +177,7 @@ struct ImportView: View {
             NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: item.mediaPath)])
         }
         Divider()
-        Button("Usuń z biblioteki", role: .destructive) { remove(item) }
+        Button("Usuń z nagrań", role: .destructive) { remove(item) }
             .disabled(imports.activeID == item.id)
     }
 
@@ -275,7 +275,7 @@ struct ImportView: View {
                         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: item.mediaPath)])
                     }
                     Divider()
-                    Button("Usuń z biblioteki", role: .destructive) { remove(item) }
+                    Button("Usuń z nagrań", role: .destructive) { remove(item) }
                 } label: {
                     Image(systemName: "ellipsis")
                         .frame(width: 32, height: 32)

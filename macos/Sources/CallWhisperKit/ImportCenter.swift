@@ -224,7 +224,7 @@ public final class ImportCenter: ObservableObject {
     private func copyToLibrary(_ item: ImportItem) async throws -> String {
         let dir = Self.libraryDirectory
         if item.mediaPath.hasPrefix(dir.path + "/") { return item.mediaPath }
-        report("Kopiuję do biblioteki…", 0)
+        report("Kopiuję do nagrań…", 0)
         let source = URL(fileURLWithPath: item.mediaPath)
         return try await Task.detached {
             let fm = FileManager.default

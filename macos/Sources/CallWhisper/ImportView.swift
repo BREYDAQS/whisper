@@ -24,6 +24,33 @@ struct ImportView: View {
             libraryColumn.frame(width: 300)
             detailCard.frame(maxWidth: .infinity)
         }
+        // Upuszczenie gdziekolwiek w Bibliotece = import. Wcześniej tylko
+        // lewa kolumna przyjmowała pliki, a duże pole po prawej — nie.
+        .overlay {
+            if dropTargeted {
+                ZStack {
+                    RoundedRectangle(cornerRadius: M3.shape.large)
+                        .fill(M3.color.page.opacity(0.88))
+                    RoundedRectangle(cornerRadius: M3.shape.large)
+                        .strokeBorder(M3.color.accent, style: StrokeStyle(lineWidth: 2, dash: [10, 7]))
+                    VStack(spacing: 10) {
+                        Image(systemName: "tray.and.arrow.down.fill")
+                            .font(.system(size: 34, weight: .medium))
+                            .foregroundStyle(M3.color.accent)
+                        Text("Upuść, żeby zaimportować")
+                            .font(M3.type.headlineSmall).tracking(-1.2)
+                            .foregroundStyle(M3.color.onSurface)
+                        Text(MediaImport.fileExtensions.joined(separator: " · ").uppercased())
+                            .font(M3.type.labelSmall)
+                            .foregroundStyle(M3.color.onSurfaceVariant)
+                    }
+                }
+                .allowsHitTesting(false)
+            }
+        }
+        .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
+            ImportDrop.handle(providers, imports: imports)
+        }
         .onAppear { if selection == nil { selection = imports.items.first?.id } }
         .sheet(item: Binding(get: { analysisFor.map(SheetID.init) }, set: { analysisFor = $0?.id })) { sheet in
             AnalysisSheet(title: imports.item(sheet.id)?.title ?? "",
@@ -82,15 +109,6 @@ struct ImportView: View {
             }
         }
         .background(M3.color.card, in: RoundedRectangle(cornerRadius: M3.shape.large))
-        .overlay {
-            if dropTargeted {
-                RoundedRectangle(cornerRadius: M3.shape.large)
-                    .strokeBorder(M3.color.primary, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-            }
-        }
-        .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
-            ImportDrop.handle(providers, imports: imports)
-        }
     }
 
     /// Ustawienia kolejnych importów: model i podział na głosy.
@@ -169,9 +187,9 @@ struct ImportView: View {
                         .font(.system(size: 30, weight: .medium))
                         .foregroundStyle(M3.color.onPrimaryContainer)
                         .frame(width: 72, height: 72)
-                        .background(M3.color.primaryContainer, in: Circle())
+                        .background(M3.color.primaryContainer, in: RoundedRectangle(cornerRadius: M3.shape.small))
                     Text("Import nagrań i wideo").font(M3.type.headlineSmall).tracking(-1.4).foregroundStyle(M3.color.onSurface)
-                    Text("Transkrypcja z podziałem na osoby, odtwarzacz zsynchronizowany z tekstem i zrzuty klatek. Wszystko lokalnie.")
+                    Text("Przeciągnij tu nagranie albo wideo — albo wybierz plik. Transkrypcja z podziałem na osoby, odtwarzacz zsynchronizowany z tekstem i zrzuty klatek. Wszystko lokalnie.")
                         .font(M3.type.bodyMedium)
                         .foregroundStyle(M3.color.onSurfaceVariant)
                         .multilineTextAlignment(.center)

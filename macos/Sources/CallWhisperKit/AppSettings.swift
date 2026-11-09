@@ -325,7 +325,7 @@ public final class AppSettings: ObservableObject {
 
     /// Dyktowanie klawiszem Fn (🌐) do dowolnego pola tekstowego, jak w whistlerze.
     public var dictationEnabled: Bool {
-        get { get(.dictationEnabled, true) }
+        get { get(.dictationEnabled, false) }
         set { set(.dictationEnabled, newValue) }
     }
 

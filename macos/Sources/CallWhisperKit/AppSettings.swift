@@ -118,7 +118,7 @@ public final class AppSettings: ObservableObject {
         case diarizeAfter, detectMeetings, autoStartOnMeeting, followOBS, whisperVocabulary
         case notchIsland, autoUpdate
         case importModel, importDiarize, importSpeakers, parakeetModel, autoAnalyze
-        case dictationEnabled, dictationMode, livePreview, dictationHotkey, dictationModel
+        case dictationEnabled, dictationMode, livePreview, dictationHotkey, dictationModel, dictationMuteSystem
     }
 
     /// Domyślny język mowy bierzemy z systemu, a nie na sztywno — inaczej
@@ -334,6 +334,12 @@ public final class AppSettings: ObservableObject {
     public var dictationModel: String {
         get { get(.dictationModel, "large-v3-turbo") }
         set { set(.dictationModel, newValue) }
+    }
+
+    /// Wyciszanie dźwięku systemu na czas dyktowania. Domyślnie nie, jak w whistlerze.
+    public var dictationMuteSystem: Bool {
+        get { get(.dictationMuteSystem, false) }
+        set { set(.dictationMuteSystem, newValue) }
     }
 
     /// Skrót dyktowania jako JSON (`DictationHotkey` w aplikacji); pusty = ⌘J.

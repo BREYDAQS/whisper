@@ -18,6 +18,14 @@ struct DictationSettingsView: View {
             Toggle("Dyktuj skrótem do dowolnego pola", isOn: Binding(
                 get: { settings.dictationEnabled }, set: { settings.dictationEnabled = $0 }))
             hotkeySection
+            Section("Podczas dyktowania") {
+                Toggle("Wyciszaj dźwięk systemu", isOn: Binding(
+                    get: { settings.dictationMuteSystem }, set: { settings.dictationMuteSystem = $0 }))
+                Text(settings.dictationMuteSystem
+                     ? "Muzyka, filmy i rozmowa milkną na czas nagrywania i wracają zaraz po nim. Dźwięk wyciszony wcześniej przez Ciebie zostaje wyciszony."
+                     : "Dźwięk systemu gra dalej w trakcie dyktowania.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             modelSection
             readinessSection
             testSection

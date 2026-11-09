@@ -66,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     /// Zwykłe wyjście (⌘Q) gasi serwer mowy od razu; na `await` nie ma tu czasu.
     func applicationWillTerminate(_ notification: Notification) {
+        dictation.restoreOutput()
         WhisperServer.terminateChildren()
     }
 

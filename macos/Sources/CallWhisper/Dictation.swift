@@ -93,6 +93,7 @@ final class DictationController: ObservableObject {
     private let settings = AppSettings.shared
     private let whisper = WhisperServer()
     private let pill = DictationPill()
+    private let output = OutputMute()
     private var mic: MicrophoneCapture?
     private let buffer = SampleBuffer()
 
@@ -158,10 +159,14 @@ final class DictationController: ObservableObject {
         unregisterCombo()
         resetHold()
         if state == .recording { cancelRecording() }
+        output.restore()
         // Model dyktowania to 1,6 GB pamięci — wyłączone dyktowanie ją oddaje.
         serverState = .off
         Task { await whisper.stop() }
     }
+
+    /// Wyjście z aplikacji w trakcie dyktowania nie może zostawić wyciszonego systemu.
+    func restoreOutput() { output.restore() }
 
     // MARK: - serwer
 
@@ -443,8 +448,10 @@ final class DictationController: ObservableObject {
                 testResult = "✗ Mikrofon: \(error.localizedDescription)"
                 return
             }
+            if settings.dictationMuteSystem { output.mute() }
             try? await Task.sleep(for: .seconds(3))
             capture.stop()
+            output.restore()
             let pcm = buffer.take()
             let peak = pcm.reduce(Float(0)) { max($0, abs($1)) }
             guard pcm.count >= Self.minSamples, peak > 0.01 else {
@@ -467,6 +474,7 @@ final class DictationController: ObservableObject {
         guard state != .recording, state != .transcribing, !testing else { return }
         buffer.reset()
         state = .recording
+        if settings.dictationMuteSystem { output.mute() }
         pill.show(state, hotkey: hotkey.label)
         Task {
             guard await MicrophoneCapture.requestAccess() else {
@@ -491,6 +499,7 @@ final class DictationController: ObservableObject {
     private func cancelRecording() {
         mic?.stop()
         mic = nil
+        output.restore()
         state = .idle
         pill.hide()
     }
@@ -499,6 +508,7 @@ final class DictationController: ObservableObject {
         guard state == .recording else { return }
         mic?.stop()
         mic = nil
+        output.restore()
         let pcm = buffer.take()
         guard pcm.count >= Self.minSamples else {
             state = .idle
@@ -532,6 +542,7 @@ final class DictationController: ObservableObject {
     private func fail(_ message: String) {
         mic?.stop()
         mic = nil
+        output.restore()
         state = .error(message)
         pill.show(state, hotkey: hotkey.label)
         Task {

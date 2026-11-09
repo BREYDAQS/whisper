@@ -66,6 +66,21 @@ func runSnapshot(directory: String, file: String?) async -> Int32 {
         try? rep.representation(using: .png, properties: [:])?.write(to: path)
         print(path.path)
     }
+    // Pigułka dyktowania: nagrywanie z wyciszeniem i bez.
+    for (name, muted) in [("wyciszone", true), ("gra", false)] {
+        let host = NSHostingView(rootView: dictationPillPreview(state: .recording, muted: muted)
+            .frame(width: 360, height: 40).background(Color.gray))
+        host.frame = NSRect(x: 0, y: 0, width: 360, height: 40)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        try? await Task.sleep(for: .milliseconds(300))
+        guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return 1 }
+        host.cacheDisplay(in: host.bounds, to: rep)
+        let path = out.appendingPathComponent("pigulka-\(name).png")
+        try? rep.representation(using: .png, properties: [:])?.write(to: path)
+        print(path.path)
+    }
     await snapshotNotch(into: out)
     return 0
 }

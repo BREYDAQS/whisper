@@ -165,6 +165,21 @@ final class DictationController: ObservableObject {
         Task { await whisper.stop() }
     }
 
+    private func showPill() {
+        pill.show(state, hotkey: hotkey.label, muted: settings.dictationMuteSystem) { [weak self] in
+            self?.toggleMute()
+        }
+    }
+
+    /// Ikona głośnika w pigułce: przełącza opcję i od razu działa w trwającym nagraniu.
+    func toggleMute() {
+        settings.dictationMuteSystem.toggle()
+        if state == .recording {
+            settings.dictationMuteSystem ? output.mute() : output.restore()
+        }
+        if state != .idle { showPill() }
+    }
+
     /// Wyjście z aplikacji w trakcie dyktowania nie może zostawić wyciszonego systemu.
     func restoreOutput() { output.restore() }
 
@@ -475,7 +490,7 @@ final class DictationController: ObservableObject {
         buffer.reset()
         state = .recording
         if settings.dictationMuteSystem { output.mute() }
-        pill.show(state, hotkey: hotkey.label)
+        showPill()
         Task {
             guard await MicrophoneCapture.requestAccess() else {
                 fail("Brak zgody na mikrofon")
@@ -516,7 +531,7 @@ final class DictationController: ObservableObject {
             return
         }
         state = .transcribing
-        pill.show(state, hotkey: hotkey.label)
+        showPill()
         Task {
             do {
                 let text = try await transcribe(pcm)
@@ -544,7 +559,7 @@ final class DictationController: ObservableObject {
         mic = nil
         output.restore()
         state = .error(message)
-        pill.show(state, hotkey: hotkey.label)
+        showPill()
         Task {
             try? await Task.sleep(for: .seconds(3))
             if case .error = state {
@@ -580,7 +595,7 @@ final class DictationController: ObservableObject {
 
         // Potwierdzenie, że poszło — pigułka znika po chwili.
         state = .pasted
-        pill.show(state, hotkey: hotkey.label)
+        showPill()
         Task {
             try? await Task.sleep(for: .milliseconds(900))
             if state == .pasted {
@@ -620,15 +635,18 @@ private final class SampleBuffer: @unchecked Sendable {
 }
 
 /// Mała pigułka u dołu ekranu: „Słucham…" / „Przepisuję…" / „Wklejono".
-/// Nie łapie myszy ani fokusu, więc wklejanie trafia tam, gdzie był kursor.
+/// Klikalna (ikona głośnika), ale nie bierze fokusu: panel nieaktywujący,
+/// który nie może zostać oknem kluczowym — wklejanie trafia tam, gdzie był kursor.
 @MainActor
 private final class DictationPill {
     private var panel: NSPanel?
     private let model = PillModel()
 
-    func show(_ state: DictationController.State, hotkey: String) {
+    func show(_ state: DictationController.State, hotkey: String, muted: Bool, onToggleMute: @escaping () -> Void) {
         model.state = state
         model.hotkey = hotkey
+        model.muted = muted
+        model.onToggleMute = onToggleMute
         let panel = self.panel ?? make()
         if let screen = NSScreen.main {
             let size = panel.frame.size
@@ -649,18 +667,38 @@ private final class DictationPill {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
-        panel.ignoresMouseEvents = true
+        // Przezroczyste tło przepuszcza kliknięcia; łapie je tylko sama pigułka.
+        panel.ignoresMouseEvents = false
+        panel.becomesKeyOnlyIfNeeded = true
         panel.hidesOnDeactivate = false
-        panel.contentView = NSHostingView(rootView: PillView(model: model))
+        panel.contentView = FirstClickHostingView(rootView: PillView(model: model))
         self.panel = panel
         return panel
     }
+}
+
+/// Ikona ma reagować na pierwsze kliknięcie — bez tego AppKit zjada je
+/// jako „aktywację" okna, które i tak nigdy nie staje się aktywne.
+private final class FirstClickHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+/// Pigułka do `--snapshot`.
+@MainActor
+func dictationPillPreview(state: DictationController.State, muted: Bool) -> some View {
+    let model = PillModel()
+    model.state = state
+    model.hotkey = "⌘J"
+    model.muted = muted
+    return PillView(model: model)
 }
 
 @MainActor
 private final class PillModel: ObservableObject {
     @Published var state: DictationController.State = .idle
     @Published var hotkey = ""
+    @Published var muted = false
+    var onToggleMute: () -> Void = {}
 }
 
 private struct PillView: View {
@@ -673,6 +711,7 @@ private struct PillView: View {
                 Circle().fill(.red).frame(width: 8, height: 8)
                 Text("Słucham…")
                 Text(model.hotkey).foregroundStyle(.white.opacity(0.6))
+                muteButton
             case .transcribing:
                 // Statyczna ikona zamiast `ProgressView`: kręciołek SwiftUI
                 // to animacja co klatkę (patrz `M3LinearProgress`).
@@ -694,5 +733,16 @@ private struct PillView: View {
         .padding(.vertical, 8)
         .background(Capsule().fill(.black.opacity(0.8)))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var muteButton: some View {
+        Button(action: model.onToggleMute) {
+            Image(systemName: model.muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                .foregroundStyle(model.muted ? Color.orange : Color.white.opacity(0.8))
+                .frame(width: 22, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(model.muted ? "Dźwięk systemu wyciszony — kliknij, żeby grał" : "Dźwięk systemu gra — kliknij, żeby wyciszyć")
     }
 }

@@ -28,6 +28,18 @@ struct DictationSettingsView: View {
             }
             modelSection
             readinessSection
+            Section("Gdy coś nie działa") {
+                Button("Pokaż log dyktowania") {
+                    let url = DictationLog.url
+                    if FileManager.default.fileExists(atPath: url.path) {
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    } else {
+                        NSWorkspace.shared.open(WhisperServer.logDirectory)
+                    }
+                }
+                Text("Każda próba zapisuje krótki log: skrót, mikrofon, głośność, wynik, aplikację docelową. Przyślij go, jeśli dyktowanie zawodzi.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             testSection
         }
         .formStyle(.grouped)

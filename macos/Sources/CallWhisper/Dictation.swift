@@ -115,6 +115,8 @@ final class DictationController: ObservableObject {
     private var pressedAt = Date.distantPast
     private var pressID = 0
     private var holdStarted = false
+    /// Start nagrania — żeby odróżnić muśnięcie skrótu od pustego mikrofonu.
+    private var recordingStarted: Date?
     private var lastStop: Date = .distantPast
 
     private static let minHoldMs = 150
@@ -330,6 +332,7 @@ final class DictationController: ObservableObject {
     }
 
     private func modifierPressed() {
+        DictationLog.write("skrót wciśnięty (\(hotkey.label))")
         hotkeyHeld = true
         chord = false
         pressedAt = Date()
@@ -361,6 +364,7 @@ final class DictationController: ObservableObject {
     }
 
     fileprivate func comboPressed() {
+        DictationLog.write("skrót wciśnięty (\(hotkey.label))")
         guard !capturing, !comboDown else { return }
         comboDown = true
         hotkeyHeld = true
@@ -489,6 +493,8 @@ final class DictationController: ObservableObject {
         guard state != .recording, state != .transcribing, !testing else { return }
         buffer.reset()
         state = .recording
+        recordingStarted = Date()
+        DictationLog.write("start: aplikacja \(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?"), mikrofon \(settings.micDeviceID.isEmpty ? "domyślny" : settings.micDeviceID), tryb \(settings.dictationMode)")
         if settings.dictationMuteSystem { output.mute() }
         showPill()
         Task {
@@ -504,8 +510,11 @@ final class DictationController: ObservableObject {
                 try capture.start(deviceID: settings.micDeviceID) { chunk in
                     buffer.append(chunk.samples)
                 }
-                mic = capture
+                DictationLog.write("mikrofon: działa")
+                // Skrót puszczony w trakcie startu mikrofonu — sprzątamy.
+                if state == .recording { mic = capture } else { capture.stop() }
             } catch {
+                DictationLog.write("mikrofon: błąd \(error.localizedDescription)")
                 fail(error.localizedDescription)
             }
         }
@@ -525,23 +534,41 @@ final class DictationController: ObservableObject {
         mic = nil
         output.restore()
         let pcm = buffer.take()
-        guard pcm.count >= Self.minSamples else {
+        let held = recordingStarted.map { Date().timeIntervalSince($0) } ?? 0
+        recordingStarted = nil
+        let peak = pcm.reduce(Float(0)) { max($0, abs($1)) }
+        DictationLog.write(String(format: "stop: %.1f s trzymania, %.1f s dźwięku, szczyt %.4f",
+                                  held, Double(pcm.count) / asrSampleRate, peak))
+        // Zbyt krótko = muśnięcie skrótu; to nie błąd.
+        if held < 0.5 && pcm.count < Self.minSamples {
             state = .idle
             pill.hide()
+            return
+        }
+        // Wcześniej te przypadki po cichu chowały pigułkę — w rozmowie
+        // wyglądało to jak „dyktowanie nie działa”.
+        guard pcm.count >= Self.minSamples else {
+            fail("Mikrofon nic nie nagrał — może zajmuje go rozmowa")
+            return
+        }
+        guard peak > 0.005 else {
+            fail("Cisza z mikrofonu — wyciszony w rozmowie?")
             return
         }
         state = .transcribing
         showPill()
         Task {
+            let started = Date()
             do {
                 let text = try await transcribe(pcm)
+                DictationLog.write("whisper: \(Int(Date().timeIntervalSince(started) * 1000)) ms, \(text.count) znaków")
                 guard !text.isEmpty else {
-                    state = .idle
-                    pill.hide()
+                    fail("Nie rozpoznano mowy — powiedz coś dłuższego")
                     return
                 }
                 paste(text)
             } catch {
+                DictationLog.write("whisper: błąd \(error.localizedDescription)")
                 fail(error.localizedDescription)
             }
         }
@@ -585,6 +612,7 @@ final class DictationController: ObservableObject {
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
         let ours = pasteboard.changeCount
+        DictationLog.write("wklejanie do \(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?"), dostępność \(AXIsProcessTrusted() ? "jest" : "brak")")
 
         guard AXIsProcessTrusted() else {
             // Bez „Dostępności" nie wkleimy za nikogo — tekst zostaje w schowku.
@@ -621,6 +649,30 @@ final class DictationController: ObservableObject {
         up.flags = .maskCommand
         down.post(tap: .cgSessionEventTap)
         up.post(tap: .cgSessionEventTap)
+    }
+}
+
+/// Krótki log dyktowania (~/Library/Logs/call-whisper/dictation.log): gdy
+/// „nie działa”, po jednej próbie widać, na którym kroku.
+enum DictationLog {
+    static var url: URL { WhisperServer.logDirectory.appendingPathComponent("dictation.log") }
+
+    static func write(_ line: String) {
+        let url = self.url
+        try? FileManager.default.createDirectory(at: WhisperServer.logDirectory, withIntermediateDirectories: true)
+        // Bez rotacji: przycinamy, gdy urośnie ponad ~200 kB.
+        if let size = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int, size > 200_000 {
+            try? FileManager.default.removeItem(at: url)
+        }
+        let stamp = ISO8601DateFormatter().string(from: Date())
+        let data = Data("\(stamp) \(line)\n".utf8)
+        if let handle = try? FileHandle(forWritingTo: url) {
+            handle.seekToEndOfFile()
+            handle.write(data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
     }
 }
 

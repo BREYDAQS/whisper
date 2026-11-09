@@ -37,6 +37,8 @@ struct MainView: View {
     @State private var defaultMic = MicrophoneCapture.defaultDevice
     @FocusState private var questionFocused: Bool
     @StateObject private var paste = PasteWatcher()
+    /// Panel podpowiedzi zwinięty do paska — transkrypt dostaje całą szerokość.
+    @AppStorage("assistantCollapsed") private var assistantCollapsed = false
 
     var body: some View {
         // Zwykły `VStack`, nie `safeAreaInset`: zagnieżdżone inset-y nie
@@ -58,8 +60,12 @@ struct MainView: View {
                         HStack(spacing: 12) {
                             transcriptCard
                                 .frame(minWidth: 340, maxWidth: .infinity)
-                            assistantCard
-                                .frame(minWidth: 300, idealWidth: 380, maxWidth: 440)
+                            if assistantCollapsed {
+                                collapsedAssistant
+                            } else {
+                                assistantCard
+                                    .frame(minWidth: 300, idealWidth: 380, maxWidth: 440)
+                            }
                         }
                     }
                 }
@@ -451,6 +457,38 @@ struct MainView: View {
 
     // MARK: - asystent
 
+    /// Zwinięte podpowiedzi: wąski pasek z ikoną i liczbą odpowiedzi.
+    /// Kliknięcie rozwija panel z powrotem.
+    private var collapsedAssistant: some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.18)) { assistantCollapsed = false }
+        } label: {
+            VStack(spacing: 10) {
+                Image(systemName: "sidebar.left")
+                    .font(.system(size: 15, weight: .medium))
+                Image(systemName: "sparkles")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(settings.assistantEnabled ? M3.color.accent : M3.color.onSurfaceVariant)
+                if !recorder.answers.isEmpty {
+                    Text("\(recorder.answers.count)")
+                        .font(.custom(BrandFonts.mono, size: 11).weight(.bold))
+                        .foregroundStyle(M3.color.onPrimary)
+                        .frame(minWidth: 20, minHeight: 20)
+                        .background(M3.color.primary, in: RoundedRectangle(cornerRadius: M3.shape.small))
+                }
+                Spacer()
+            }
+            .foregroundStyle(M3.color.onSurfaceVariant)
+            .padding(.top, 14)
+            .frame(width: 44)
+            .frame(maxHeight: .infinity)
+            .background(M3.color.card, in: RoundedRectangle(cornerRadius: M3.shape.large))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Rozwiń podpowiedzi")
+    }
+
     private var assistantCard: some View {
         VStack(spacing: 0) {
             HStack {
@@ -465,10 +503,18 @@ struct MainView: View {
                 .font(M3.type.labelSmall)
                 .foregroundStyle(M3.color.onSurfaceVariant)
                 .lineLimit(1)
+                Button {
+                    withAnimation(.easeOut(duration: 0.18)) { assistantCollapsed = true }
+                } label: {
+                    Label("Zwiń", systemImage: "sidebar.right")
+                }
+                .buttonStyle(M3IconButtonStyle())
+                .help("Zwiń podpowiedzi do paska — transkrypt na całą szerokość")
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
+            .padding(.leading, 20)
+            .padding(.trailing, 8)
+            .padding(.top, 10)
+            .padding(.bottom, 4)
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
@@ -477,7 +523,7 @@ struct MainView: View {
                              ? (settings.autoAsk
                                 ? "Pytania wykryte w rozmowie trafią tutaj same. Możesz też zapytać poniżej."
                                 : "Automatyczne pytania wyłączone. Zapytaj poniżej.")
-                             : "Podpowiedzi wyłączone. Włącz je ikoną ✨ na górnym pasku.")
+                             : "Podpowiedzi wyłączone. Włącz je w pasku po lewej: Asystent → Podpowiedzi.")
                             .font(M3.type.bodyMedium)
                             .foregroundStyle(M3.color.onSurfaceVariant)
                             .padding(.top, 4)

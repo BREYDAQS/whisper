@@ -49,6 +49,23 @@ func runSnapshot(directory: String, file: String?) async -> Int32 {
             print(path.path)
         }
     }
+    // Zakładka Dyktowanie z Ustawień: skrót, gotowość, próba.
+    let dictation = DictationController()
+    for (name, appearance) in [("jasny", NSAppearance.Name.aqua), ("ciemny", .darkAqua)] {
+        let host = NSHostingView(rootView: DictationSettingsView(settings: .shared, dictation: dictation, models: .shared)
+            .frame(width: 500, height: 720))
+        host.frame = NSRect(x: 0, y: 0, width: 500, height: 720)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: appearance)
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        try? await Task.sleep(for: .milliseconds(600))
+        guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return 1 }
+        host.cacheDisplay(in: host.bounds, to: rep)
+        let path = out.appendingPathComponent("dyktowanie-\(name).png")
+        try? rep.representation(using: .png, properties: [:])?.write(to: path)
+        print(path.path)
+    }
     await snapshotNotch(into: out)
     return 0
 }

@@ -1,22 +1,88 @@
 import SwiftUI
 import AppKit
+import Carbon.HIToolbox
 import ApplicationServices
 import CallWhisperKit
 
+/// Skrót dyktowania ustawiany w Ustawieniach.
+///
+/// Dwa rodzaje, bo system obsługuje je zupełnie inaczej:
+///  - sam modyfikator (fn, ⌃⌥) — `keyCode == nil`, czytany z `flagsChanged`;
+///  - modyfikator + klawisz (⌥Space, ⌘⇧D) albo klawisz F — rejestrowany
+///    w Carbon (`RegisterEventHotKey`). System go połyka, więc ⌥Space nie
+///    wpisze przy okazji spacji do pola, i nie wymaga zgody „Dostępność".
+struct DictationHotkey: Codable, Equatable {
+    var keyCode: UInt16?
+    var modifiers: UInt
+    var label: String
+
+    static let fn = DictationHotkey(keyCode: nil, modifiers: NSEvent.ModifierFlags.function.rawValue, label: "fn")
+    static let modifierMask: NSEvent.ModifierFlags = [.command, .option, .control, .shift, .function]
+    static let comboMask: NSEvent.ModifierFlags = [.command, .option, .control, .shift]
+
+    var flags: NSEvent.ModifierFlags { NSEvent.ModifierFlags(rawValue: modifiers) }
+    var isModifierOnly: Bool { keyCode == nil }
+
+    static func load(_ json: String) -> DictationHotkey {
+        guard let hotkey = try? JSONDecoder().decode(Self.self, from: Data(json.utf8)) else { return .fn }
+        return hotkey
+    }
+
+    var json: String { (try? JSONEncoder().encode(self)).map { String(decoding: $0, as: UTF8.self) } ?? "" }
+
+    static func symbols(_ flags: NSEvent.ModifierFlags) -> String {
+        var out = ""
+        if flags.contains(.function) { out += "fn" }
+        if flags.contains(.control) { out += "⌃" }
+        if flags.contains(.option) { out += "⌥" }
+        if flags.contains(.shift) { out += "⇧" }
+        if flags.contains(.command) { out += "⌘" }
+        return out
+    }
+
+    static let fKeys: [UInt16: String] = [
+        122: "F1", 120: "F2", 99: "F3", 118: "F4", 96: "F5", 97: "F6", 98: "F7", 100: "F8",
+        101: "F9", 109: "F10", 103: "F11", 111: "F12", 105: "F13", 107: "F14", 113: "F15",
+        106: "F16", 64: "F17", 79: "F18", 80: "F19",
+    ]
+
+    static func keyName(_ code: UInt16, characters: String?) -> String {
+        let special: [UInt16: String] = [49: "Space", 36: "↩", 48: "⇥", 51: "⌫", 117: "⌦",
+                                         123: "←", 124: "→", 125: "↓", 126: "↑"]
+        if let name = special[code] ?? fKeys[code] { return name }
+        return characters?.uppercased() ?? "#\(code)"
+    }
+
+    /// Modyfikatory w formacie Carbon.
+    var carbonModifiers: UInt32 {
+        var out: UInt32 = 0
+        if flags.contains(.command) { out |= UInt32(cmdKey) }
+        if flags.contains(.option) { out |= UInt32(optionKey) }
+        if flags.contains(.control) { out |= UInt32(controlKey) }
+        if flags.contains(.shift) { out |= UInt32(shiftKey) }
+        return out
+    }
+}
+
 /// Dyktowanie do dowolnego pola tekstowego, port z whistlera (OpenWhispr):
-/// Fn (🌐) → mikrofon → whisper-server → schowek + ⌘V → stary schowek wraca.
+/// skrót → mikrofon → whisper-server → schowek + ⌘V → stary schowek wraca.
 ///
-/// Tryby jak tam: `push` — trzymasz Fn i mówisz (start po 150 ms, żeby
-/// zwykłe muśnięcie Fn nie nagrywało); `toggle` — tapnięcie zaczyna, drugie
-/// kończy.
-///
-/// Nasłuch Fn spoza aplikacji i wklejanie przez `CGEvent` wymagają zgody
-/// „Dostępność". Bez niej skrót działa tylko, gdy call-whisper ma fokus.
+/// Tryby jak tam: `push` — trzymasz skrót i mówisz; `toggle` — naciśnięcie
+/// zaczyna, kolejne kończy.
 @MainActor
 final class DictationController: ObservableObject {
-    enum State: Equatable { case idle, recording, transcribing, error(String) }
+    enum State: Equatable { case idle, recording, transcribing, pasted, error(String) }
     @Published private(set) var state: State = .idle
     @Published private(set) var trusted = AXIsProcessTrusted()
+    @Published private(set) var hotkey: DictationHotkey
+    /// Skrót wciśnięty teraz — lampka w Ustawieniach.
+    @Published private(set) var hotkeyHeld = false
+    @Published private(set) var hotkeyError: String?
+    /// Ustawienia nagrywają nowy skrót: obecny nie działa, żeby nie zaczął dyktowania.
+    @Published private(set) var capturing = false
+    @Published private(set) var captureHint: String?
+    @Published private(set) var testing = false
+    @Published private(set) var testResult: String?
 
     private let settings = AppSettings.shared
     private let server = WhisperServer()
@@ -24,43 +90,66 @@ final class DictationController: ObservableObject {
     private var mic: MicrophoneCapture?
     private let buffer = SampleBuffer()
 
-    private var globalMonitor: Any?
-    private var localMonitor: Any?
+    private var running = false
+    private var monitors: [Any] = []
+    private var globalMonitors: [Any] = []
+    private var captureMonitor: Any?
+    private var capturePeak: NSEvent.ModifierFlags = []
+    private var captureSawKey = false
     private var trustPoll: Timer?
-    private var fnDown = false
+    private var carbonHandler: EventHandlerRef?
+    private var carbonHotKey: EventHotKeyRef?
+
+    private var modHeld = false
+    private var comboDown = false
+    /// Przy skrócie z samych modyfikatorów: w trakcie wciśnięto inny klawisz,
+    /// więc to był zwykły skrót klawiszowy (⌥+a = „ą"), a nie dyktowanie.
+    private var chord = false
+    private var pressedAt = Date.distantPast
     private var pressID = 0
     private var holdStarted = false
     private var lastStop: Date = .distantPast
 
     private static let minHoldMs = 150
+    /// Dłużej trzymany modyfikator w trybie `toggle` to nie tapnięcie.
+    private static let maxTap: TimeInterval = 0.6
     private static let postStopCooldown: TimeInterval = 0.3
     /// Krótsze nagranie to przypadkowe dotknięcie — whisper zmyśliłby zdanie.
     private static let minSamples = Int(asrSampleRate * 0.4)
     /// Tyle czekamy, zanim przywrócimy schowek (jak whistler na macOS).
     private static let restoreDelay: TimeInterval = 2
 
+    init() {
+        hotkey = DictationHotkey.load(AppSettings.shared.dictationHotkey)
+    }
+
     // MARK: - cykl życia
 
     func start() {
-        guard localMonitor == nil else { return }
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-            self?.handleFlags(event)
+        guard !running else { return }
+        running = true
+        monitors.append(NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .keyDown]) { [weak self] event in
+            self?.handle(event)
             return event
-        }
+        } as Any)
         if AXIsProcessTrusted() {
-            installGlobalMonitor()
+            installGlobalMonitors()
         } else {
             requestTrust()
         }
+        registerCombo()
     }
 
     func stop() {
-        if let localMonitor { NSEvent.removeMonitor(localMonitor) }
-        if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
-        localMonitor = nil
-        globalMonitor = nil
+        guard running else { return }
+        running = false
+        (monitors + globalMonitors).forEach(NSEvent.removeMonitor)
+        monitors = []
+        globalMonitors = []
         trustPoll?.invalidate()
         trustPoll = nil
+        unregisterCombo()
+        resetHold()
         if state == .recording { cancelRecording() }
     }
 
@@ -68,10 +157,11 @@ final class DictationController: ObservableObject {
     func requestTrust() {
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         trusted = AXIsProcessTrustedWithOptions(options)
-        guard !trusted, trustPoll == nil else {
-            if trusted { installGlobalMonitor() }
+        if trusted {
+            installGlobalMonitors()
             return
         }
+        guard trustPoll == nil else { return }
         let timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.checkTrust() }
         }
@@ -84,45 +174,112 @@ final class DictationController: ObservableObject {
         guard trusted else { return }
         trustPoll?.invalidate()
         trustPoll = nil
-        installGlobalMonitor()
+        installGlobalMonitors()
     }
 
-    private func installGlobalMonitor() {
+    /// Nasłuch klawiszy w innych aplikacjach — wymaga „Dostępności".
+    private func installGlobalMonitors() {
         trusted = true
-        guard globalMonitor == nil else { return }
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-            self?.handleFlags(event)
+        guard running, globalMonitors.isEmpty else { return }
+        if let monitor = NSEvent.addGlobalMonitorForEvents(matching: [.flagsChanged, .keyDown], handler: { [weak self] event in
+            self?.handle(event)
+        }) {
+            globalMonitors.append(monitor)
         }
     }
 
-    // MARK: - klawisz Fn
+    // MARK: - skrót
 
-    private func handleFlags(_ event: NSEvent) {
-        let down = event.modifierFlags.contains(.function)
-        guard down != fnDown else { return }
-        fnDown = down
-        down ? fnPressed() : fnReleased()
+    func setHotkey(_ new: DictationHotkey) {
+        unregisterCombo()
+        resetHold()
+        hotkey = new
+        settings.dictationHotkey = new.json
+        if running && !capturing { registerCombo() }
     }
 
-    private func fnPressed() {
-        if settings.dictationMode == "toggle" {
-            state == .recording ? finish() : begin()
-            return
+    private func resetHold() {
+        modHeld = false
+        comboDown = false
+        hotkeyHeld = false
+        holdStarted = false
+        pressID += 1
+    }
+
+    private func registerCombo() {
+        hotkeyError = nil
+        guard running, !capturing, let code = hotkey.keyCode, carbonHotKey == nil else { return }
+        if carbonHandler == nil {
+            var types = [
+                EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
+                EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased)),
+            ]
+            InstallEventHandler(GetApplicationEventTarget(), { _, event, userData in
+                guard let event, let userData else { return OSStatus(eventNotHandledErr) }
+                let pressed = GetEventKind(event) == UInt32(kEventHotKeyPressed)
+                let controller = Unmanaged<DictationController>.fromOpaque(userData).takeUnretainedValue()
+                MainActor.assumeIsolated { pressed ? controller.comboPressed() : controller.comboReleased() }
+                return noErr
+            }, types.count, &types, Unmanaged.passUnretained(self).toOpaque(), &carbonHandler)
         }
+        let id = EventHotKeyID(signature: OSType(0x4357_4454), id: 1) // „CWDT"
+        let status = RegisterEventHotKey(UInt32(code), hotkey.carbonModifiers, id,
+                                         GetApplicationEventTarget(), 0, &carbonHotKey)
+        if status != noErr {
+            carbonHotKey = nil
+            hotkeyError = "Skrót \(hotkey.label) jest zajęty przez system albo inną aplikację. Wybierz inny."
+        }
+    }
+
+    private func unregisterCombo() {
+        if let carbonHotKey { UnregisterEventHotKey(carbonHotKey) }
+        carbonHotKey = nil
+    }
+
+    private func handle(_ event: NSEvent) {
+        guard !capturing, hotkey.isModifierOnly else { return }
+        switch event.type {
+        case .flagsChanged:
+            let active = event.modifierFlags.intersection(DictationHotkey.modifierMask) == hotkey.flags
+            guard active != modHeld else { return }
+            modHeld = active
+            active ? modifierPressed() : modifierReleased()
+        case .keyDown where modHeld:
+            chord = true
+            pressID += 1
+            // Trwające nagranie z przytrzymania kończymy bez wklejania.
+            if holdStarted {
+                holdStarted = false
+                cancelRecording()
+            }
+        default:
+            break
+        }
+    }
+
+    private func modifierPressed() {
+        hotkeyHeld = true
+        chord = false
+        pressedAt = Date()
+        guard settings.dictationMode != "toggle" else { return }
         guard Date().timeIntervalSince(lastStop) > Self.postStopCooldown else { return }
         pressID += 1
         let id = pressID
         holdStarted = false
         Task {
             try? await Task.sleep(for: .milliseconds(Self.minHoldMs))
-            guard id == pressID, fnDown, !holdStarted else { return }
+            guard id == pressID, modHeld, !chord, !holdStarted else { return }
             holdStarted = true
             begin()
         }
     }
 
-    private func fnReleased() {
-        guard settings.dictationMode != "toggle" else { return }
+    private func modifierReleased() {
+        hotkeyHeld = false
+        if settings.dictationMode == "toggle" {
+            if !chord, Date().timeIntervalSince(pressedAt) < Self.maxTap { toggle() }
+            return
+        }
         pressID += 1
         lastStop = Date()
         if holdStarted {
@@ -131,19 +288,140 @@ final class DictationController: ObservableObject {
         }
     }
 
+    fileprivate func comboPressed() {
+        guard !capturing, !comboDown else { return }
+        comboDown = true
+        hotkeyHeld = true
+        settings.dictationMode == "toggle" ? toggle() : begin()
+    }
+
+    fileprivate func comboReleased() {
+        guard comboDown else { return }
+        comboDown = false
+        hotkeyHeld = false
+        if settings.dictationMode != "toggle" { finish() }
+    }
+
+    private func toggle() {
+        state == .recording ? finish() : begin()
+    }
+
+    // MARK: - nagrywanie skrótu w Ustawieniach
+
+    func beginCapture() {
+        guard !capturing else { return }
+        capturing = true
+        captureHint = nil
+        capturePeak = []
+        captureSawKey = false
+        unregisterCombo()
+        resetHold()
+        captureMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] event in
+            guard let self else { return event }
+            return self.capture(event) ? nil : event
+        }
+    }
+
+    func cancelCapture() { endCapture(nil) }
+
+    /// `true` = zdarzenie połknięte.
+    private func capture(_ event: NSEvent) -> Bool {
+        switch event.type {
+        case .keyDown:
+            let mods = event.modifierFlags.intersection(DictationHotkey.comboMask)
+            if event.keyCode == UInt16(kVK_Escape) && mods.isEmpty {
+                endCapture(nil)
+                return true
+            }
+            captureSawKey = true
+            guard !mods.isEmpty || DictationHotkey.fKeys[event.keyCode] != nil else {
+                captureHint = "Dodaj modyfikator (⌃ ⌥ ⇧ ⌘) albo użyj klawisza F."
+                return true
+            }
+            let name = DictationHotkey.keyName(event.keyCode, characters: event.charactersIgnoringModifiers)
+            endCapture(DictationHotkey(keyCode: event.keyCode, modifiers: mods.rawValue,
+                                       label: DictationHotkey.symbols(mods) + name))
+            return true
+        case .flagsChanged:
+            let current = event.modifierFlags.intersection(DictationHotkey.modifierMask)
+            if current.isEmpty {
+                // Wszystko puszczone bez klawisza po drodze = skrót z samych modyfikatorów.
+                if !capturePeak.isEmpty && !captureSawKey {
+                    endCapture(DictationHotkey(keyCode: nil, modifiers: capturePeak.rawValue,
+                                               label: DictationHotkey.symbols(capturePeak)))
+                }
+                capturePeak = []
+                captureSawKey = false
+            } else {
+                capturePeak.formUnion(current)
+            }
+            return false
+        default:
+            return false
+        }
+    }
+
+    private func endCapture(_ new: DictationHotkey?) {
+        if let captureMonitor { NSEvent.removeMonitor(captureMonitor) }
+        captureMonitor = nil
+        captureHint = nil
+        capturing = false
+        if let new { setHotkey(new) } else { registerCombo() }
+    }
+
+    // MARK: - test
+
+    /// 3 s z mikrofonu → tekst w Ustawieniach, bez wklejania. Sprawdza naraz
+    /// zgodę na mikrofon, czy cokolwiek słychać, silnik i model.
+    func runTest() {
+        guard !testing, state == .idle else { return }
+        testing = true
+        testResult = nil
+        Task {
+            defer { testing = false }
+            guard await MicrophoneCapture.requestAccess() else {
+                testResult = "✗ Brak zgody na mikrofon."
+                return
+            }
+            let capture = MicrophoneCapture()
+            let buffer = SampleBuffer()
+            do {
+                try capture.start(deviceID: settings.micDeviceID) { chunk in buffer.append(chunk.samples) }
+            } catch {
+                testResult = "✗ Mikrofon: \(error.localizedDescription)"
+                return
+            }
+            try? await Task.sleep(for: .seconds(3))
+            capture.stop()
+            let pcm = buffer.take()
+            let peak = pcm.reduce(Float(0)) { max($0, abs($1)) }
+            guard pcm.count >= Self.minSamples, peak > 0.01 else {
+                testResult = "✗ Mikrofon nic nie słyszy. Sprawdź wejście w Ustawieniach → Ogólne."
+                return
+            }
+            do {
+                let text = try await transcribe(pcm)
+                testResult = text.isEmpty ? "✓ Mikrofon słyszy, ale nic nie rozpoznano. Powiedz coś dłuższego."
+                                          : "✓ \(text)"
+            } catch {
+                testResult = "✗ \(error.localizedDescription)"
+            }
+        }
+    }
+
     // MARK: - nagranie
 
     private func begin() {
-        guard state != .recording, state != .transcribing else { return }
+        guard state != .recording, state != .transcribing, !testing else { return }
         buffer.reset()
         state = .recording
-        pill.show(state)
+        pill.show(state, hotkey: hotkey.label)
         Task {
             guard await MicrophoneCapture.requestAccess() else {
                 fail("Brak zgody na mikrofon")
                 return
             }
-            // Fn puszczony, zanim przyszła zgoda.
+            // Skrót puszczony, zanim przyszła zgoda.
             guard state == .recording else { return }
             let capture = MicrophoneCapture()
             let buffer = self.buffer
@@ -176,13 +454,16 @@ final class DictationController: ObservableObject {
             return
         }
         state = .transcribing
-        pill.show(state)
+        pill.show(state, hotkey: hotkey.label)
         Task {
             do {
                 let text = try await transcribe(pcm)
-                state = .idle
-                pill.hide()
-                if !text.isEmpty { paste(text) }
+                guard !text.isEmpty else {
+                    state = .idle
+                    pill.hide()
+                    return
+                }
+                paste(text)
             } catch {
                 fail(error.localizedDescription)
             }
@@ -203,7 +484,7 @@ final class DictationController: ObservableObject {
         mic?.stop()
         mic = nil
         state = .error(message)
-        pill.show(state)
+        pill.show(state, hotkey: hotkey.label)
         Task {
             try? await Task.sleep(for: .seconds(3))
             if case .error = state {
@@ -237,6 +518,17 @@ final class DictationController: ObservableObject {
         }
         Self.postCommandV()
 
+        // Potwierdzenie, że poszło — pigułka znika po chwili.
+        state = .pasted
+        pill.show(state, hotkey: hotkey.label)
+        Task {
+            try? await Task.sleep(for: .milliseconds(900))
+            if state == .pasted {
+                state = .idle
+                pill.hide()
+            }
+        }
+
         Task {
             try? await Task.sleep(for: .seconds(Self.restoreDelay))
             guard pasteboard.changeCount == ours, !saved.isEmpty else { return }
@@ -267,15 +559,16 @@ private final class SampleBuffer: @unchecked Sendable {
     func take() -> [Float] { lock.withLock { defer { samples = [] }; return samples } }
 }
 
-/// Mała pigułka u dołu ekranu: „Słucham…" / „Przepisuję…". Nie łapie
-/// myszy ani fokusu, więc wklejanie trafia tam, gdzie był kursor.
+/// Mała pigułka u dołu ekranu: „Słucham…" / „Przepisuję…" / „Wklejono".
+/// Nie łapie myszy ani fokusu, więc wklejanie trafia tam, gdzie był kursor.
 @MainActor
 private final class DictationPill {
     private var panel: NSPanel?
     private let model = PillModel()
 
-    func show(_ state: DictationController.State) {
+    func show(_ state: DictationController.State, hotkey: String) {
         model.state = state
+        model.hotkey = hotkey
         let panel = self.panel ?? make()
         if let screen = NSScreen.main {
             let size = panel.frame.size
@@ -288,7 +581,7 @@ private final class DictationPill {
     func hide() { panel?.orderOut(nil) }
 
     private func make() -> NSPanel {
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 320, height: 40),
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 360, height: 40),
                             styleMask: [.borderless, .nonactivatingPanel],
                             backing: .buffered, defer: false)
         panel.level = .statusBar
@@ -307,6 +600,7 @@ private final class DictationPill {
 @MainActor
 private final class PillModel: ObservableObject {
     @Published var state: DictationController.State = .idle
+    @Published var hotkey = ""
 }
 
 private struct PillView: View {
@@ -318,9 +612,15 @@ private struct PillView: View {
             case .recording:
                 Circle().fill(.red).frame(width: 8, height: 8)
                 Text("Słucham…")
+                Text(model.hotkey).foregroundStyle(.white.opacity(0.6))
             case .transcribing:
-                ProgressView().controlSize(.small)
+                // Statyczna ikona zamiast `ProgressView`: kręciołek SwiftUI
+                // to animacja co klatkę (patrz `M3LinearProgress`).
+                Image(systemName: "text.bubble")
                 Text("Przepisuję…")
+            case .pasted:
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Text("Wklejono")
             case .error(let message):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 Text(message).lineLimit(1)

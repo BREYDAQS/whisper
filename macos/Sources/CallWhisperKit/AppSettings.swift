@@ -118,7 +118,7 @@ public final class AppSettings: ObservableObject {
         case diarizeAfter, detectMeetings, autoStartOnMeeting, followOBS, whisperVocabulary
         case notchIsland, autoUpdate
         case importModel, importDiarize, importSpeakers, parakeetModel, autoAnalyze
-        case dictationEnabled, dictationMode, livePreview
+        case dictationEnabled, dictationMode, livePreview, dictationHotkey
     }
 
     /// Domyślny język mowy bierzemy z systemu, a nie na sztywno — inaczej
@@ -327,6 +327,12 @@ public final class AppSettings: ObservableObject {
     public var dictationEnabled: Bool {
         get { get(.dictationEnabled, false) }
         set { set(.dictationEnabled, newValue) }
+    }
+
+    /// Skrót dyktowania jako JSON (`DictationHotkey` w aplikacji); pusty = fn.
+    public var dictationHotkey: String {
+        get { get(.dictationHotkey, "") }
+        set { set(.dictationHotkey, newValue) }
     }
 
     /// `push` = trzymaj Fn i mów; `toggle` = tapnij Fn, żeby zacząć i skończyć.

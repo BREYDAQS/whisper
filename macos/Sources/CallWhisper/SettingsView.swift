@@ -41,6 +41,8 @@ struct SettingsView: View {
             ModelsSettingsView(store: models, settings: settings)
                 .tabItem { Label("Modele", systemImage: "square.and.arrow.down.on.square") }
             assistantTab.tabItem { Label("Asystent", systemImage: "sparkles") }
+            DictationSettingsView(settings: settings, dictation: dictation, models: models)
+                .tabItem { Label("Dyktowanie", systemImage: "mic") }
         }
         .frame(width: 500)
         .task { await refreshModelStatus() }
@@ -163,47 +165,6 @@ struct SettingsView: View {
                 Text("francuski").tag("fr-FR")
             }
             .onChange(of: settings.language) { _, _ in Task { await refreshModelStatus() } }
-
-            Section("Dyktowanie") {
-                Toggle("Dyktuj klawiszem Fn (🌐) do dowolnego pola", isOn: Binding(
-                    get: { settings.dictationEnabled }, set: { settings.dictationEnabled = $0 }))
-                if settings.dictationEnabled {
-                    Picker("Tryb", selection: Binding(
-                        get: { settings.dictationMode }, set: { settings.dictationMode = $0 })) {
-                        Text("Trzymaj Fn i mów").tag("push")
-                        Text("Tapnij Fn: start / stop").tag("toggle")
-                    }
-                    if !dictation.trusted {
-                        HStack {
-                            Label("Brak zgody „Dostępność” — skrót działa tylko w oknie call-whisper, tekst zostaje w schowku.",
-                                  systemImage: "exclamationmark.triangle.fill")
-                                .font(.caption).foregroundStyle(.orange)
-                            Button("Nadaj") { dictation.requestTrust() }.controlSize(.small)
-                        }
-                    }
-                    Text("Tekst wkleja się tam, gdzie stoi kursor; schowek wraca po 2 s. Model: whisper \(settings.whisperModel). Ustaw w Ustawieniach systemowych → Klawiatura „Naciśnij 🌐, aby: Nic nie rób”, inaczej Fn otworzy też emoji albo dyktowanie Apple.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-
-            Toggle("Rozpoznawaj, kto mówi", isOn: Binding(
-                get: { settings.identifySpeakers }, set: { settings.identifySpeakers = $0 }))
-                .help("Klastrowanie MFCC — podejście sprzed ery sieci neuronowych. Rozdziela wyraźnie różne głosy, ale podobne potrafi rozsypać na kilka etykiet.")
-
-            if !settings.identifySpeakers {
-                Text("Wyłączone. Podział „Ty” (mikrofon) vs „Rozmówcy” (dźwięk systemu) działa dalej — on nie zgaduje niczego po głosie.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-
-            Toggle("Rozpoznawaj głosy po rozmowie (sieć neuronowa)", isOn: Binding(
-                get: { settings.diarizeAfter }, set: { settings.diarizeAfter = $0 }))
-                .help("pyannote + CAM++ przez sherpa-onnx, jak w OpenWhispr. Działa na całym nagraniu naraz, więc widzi wszystkie głosy, zanim zdecyduje.")
-            if settings.diarizeAfter {
-                Text(Engines.canDiarize
-                     ? "Po zatrzymaniu „Rozmówcy” rozpadną się na „Rozmówca 1”, „Rozmówca 2”… Działa też przy imporcie nagrań. Audio sesji leży w katalogu tymczasowym tylko do końca rozpoznawania."
-                     : "Przy pierwszym użyciu pobierze silnik i modele (~100 MB). Po zatrzymaniu „Rozmówcy” rozpadną się na „Rozmówca 1”, „Rozmówca 2”…")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
 
             Toggle("Tekst na żywo w trakcie mówienia", isOn: Binding(
                 get: { settings.livePreview }, set: { settings.livePreview = $0 }))

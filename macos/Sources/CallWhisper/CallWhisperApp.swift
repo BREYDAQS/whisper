@@ -26,7 +26,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// `UNUserNotificationCenter` wywala proces.
     private var canNotify: Bool { Bundle.main.bundleIdentifier != nil }
 
+    /// Dwie kopie apki naraz (ten sam bundle id) biją się o OBS, skrót
+    /// dyktowania i serwery mowy. Zdarzyło się 2026-11-09 po zmianie nazwy:
+    /// stara call-whisper.app (już usunięta z dysku) odebrała zdarzenie startu
+    /// nagrania z OBS, nie wystartowała i zatrzymała nagranie — nowa kopia
+    /// wyłączała nasłuch od razu po „Słuchaj”.
+    ///
+    /// Kopia z innej ścieżki albo usunięta z dysku to stara wersja — ustępuje.
+    /// Ta sama apka otwarta drugi raz pokazuje pierwszą i znika.
+    /// `false` = ta kopia ma się zamknąć.
+    private func resolveDuplicateInstances() -> Bool {
+        guard let id = Bundle.main.bundleIdentifier else { return true }
+        let mine = Bundle.main.bundleURL.standardizedFileURL
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: id)
+            .filter { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }
+        for other in others {
+            let theirs = other.bundleURL?.standardizedFileURL
+            let stale = theirs == nil || theirs != mine || !FileManager.default.fileExists(atPath: theirs!.path)
+            if stale {
+                other.terminate()
+            } else {
+                other.activate()
+                return false
+            }
+        }
+        return true
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        guard resolveDuplicateInstances() else {
+            NSApp.terminate(nil)
+            return
+        }
+        LegacyCleanup.run()
         if NotchIslandController.demoRequested {
             NSApp.setActivationPolicy(.accessory)
             DispatchQueue.main.async { NSApp.windows.forEach { $0.orderOut(nil) } }

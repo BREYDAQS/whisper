@@ -118,8 +118,11 @@ struct MainView: View {
 
     /// Szyna nawigacji M3 po lewej: wszystkie funkcje okna z etykietami,
     /// zamiast samych ikon w górnym pasku.
+    /// Szyna pogrupowana tematycznie: nagrania, transkrypt, asystent —
+    /// każda grupa z małą etykietą mono jak na stronie Breydaqs.
     private var navigationRail: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
+            RailSection("Nagrania")
             Button {
                 screen = .live
             } label: {
@@ -148,6 +151,7 @@ struct MainView: View {
                   ? "Przerwij rozpoznawanie głosów"
                   : "Transkrybuj nagranie albo wideo (\(MediaImport.fileExtensions.joined(separator: ", "))). Można też upuścić plik na transkrypt.")
 
+            RailSection("Transkrypt")
             Button {
                 showAnalysis = true
             } label: {
@@ -156,28 +160,6 @@ struct MainView: View {
             .buttonStyle(M3RailButtonStyle(selected: recorder.analysis != nil))
             .disabled(recorder.segments.isEmpty || recorder.isRunning)
             .help("Claude Code: podsumowanie, zadania, decyzje i pytania na kolejną rozmowę")
-
-            // Podpowiedzi bywają hałasem (film, monolog), więc wyłącznik musi
-            // być pod ręką. Wariant „selected" pokazuje stan.
-            // Ikona ta sama w obu stanach: „sparkles.slash" nie istnieje w SF
-            // Symbols i SwiftUI rysuje wtedy puste miejsce.
-            Button {
-                settings.assistantEnabled.toggle()
-            } label: {
-                Label("Podpowiedzi", systemImage: "sparkles")
-            }
-            .buttonStyle(M3RailButtonStyle(selected: settings.assistantEnabled))
-            .help(settings.assistantEnabled
-                  ? "Podpowiedzi włączone: \(assistantLabel)"
-                  : "Podpowiedzi wyłączone. Kliknij, żeby włączyć.")
-
-            Button {
-                overlay.toggle(recorder: recorder)
-            } label: {
-                Label("Nakładka", systemImage: "rectangle.on.rectangle")
-            }
-            .buttonStyle(M3RailButtonStyle(selected: overlay.isVisible))
-            .help("Pływające okno z odpowiedziami, zostaje na wierzchu nad rozmową")
 
             // Kopiowanie do czatu ma działać także w trakcie rozmowy, więc nie
             // siedzi w menu eksportu, które jest wtedy wyłączone.
@@ -215,6 +197,29 @@ struct MainView: View {
             .opacity(recorder.segments.isEmpty || recorder.isRunning ? 0.38 : 1)
             .help("Eksport")
 
+            RailSection("Asystent")
+            // Podpowiedzi bywają hałasem (film, monolog), więc wyłącznik musi
+            // być pod ręką. Wariant „selected" pokazuje stan.
+            // Ikona ta sama w obu stanach: „sparkles.slash" nie istnieje w SF
+            // Symbols i SwiftUI rysuje wtedy puste miejsce.
+            Button {
+                settings.assistantEnabled.toggle()
+            } label: {
+                Label("Podpowiedzi", systemImage: "sparkles")
+            }
+            .buttonStyle(M3RailButtonStyle(selected: settings.assistantEnabled))
+            .help(settings.assistantEnabled
+                  ? "Podpowiedzi włączone: \(assistantLabel)"
+                  : "Podpowiedzi wyłączone. Kliknij, żeby włączyć.")
+
+            Button {
+                overlay.toggle(recorder: recorder)
+            } label: {
+                Label("Nakładka", systemImage: "rectangle.on.rectangle")
+            }
+            .buttonStyle(M3RailButtonStyle(selected: overlay.isVisible))
+            .help("Pływające okno z odpowiedziami, zostaje na wierzchu nad rozmową")
+
             Spacer()
 
             Button {
@@ -234,7 +239,7 @@ struct MainView: View {
             .help("Ustawienia (⌘,)")
         }
         // Zapas na światła okna: pasek tytułu jest ukryty.
-        .padding(.top, 56)
+        .padding(.top, 44)
         .padding(.bottom, 16)
         .frame(width: 88)
     }
@@ -242,7 +247,7 @@ struct MainView: View {
     // MARK: - transkrypt
 
     private var transcriptCard: some View {
-        ZStack(alignment: .bottomTrailing) {
+        VStack(spacing: 0) {
             Group {
                 if recorder.segments.isEmpty {
                     emptyState
@@ -259,9 +264,7 @@ struct MainView: View {
                                 }
                             }
                             .padding(.horizontal, 24)
-                            .padding(.top, 20)
-                            // Zapas pod FAB, żeby nie przykrywał ostatniej wypowiedzi.
-                            .padding(.bottom, 96)
+                            .padding(.vertical, 20)
                         }
                         .onChange(of: recorder.segments.last?.id) { _, id in
                             guard let id else { return }
@@ -272,13 +275,9 @@ struct MainView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            VStack(alignment: .trailing, spacing: 10) {
-                audioSourcePicker
-                if !recorder.isRunning { captureModePicker }
-                listenFAB
-            }
-            .padding(20)
+            controlBar
         }
+        .clipShape(RoundedRectangle(cornerRadius: M3.shape.large))
         .overlay(alignment: .top) {
             if !selection.isEmpty { selectionBar.padding(12) }
         }
@@ -331,6 +330,34 @@ struct MainView: View {
         .padding(32)
     }
 
+    /// Pasek sterowania pod transkryptem: źródła, tryb i „Słuchaj” w jednym
+    /// rzędzie. Wcześniej wisiały w trzech rzędach na tekście transkryptu
+    /// i zasłaniały ostatnie wypowiedzi. W wąskim oknie łamie się na dwa.
+    private var controlBar: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                audioSourcePicker
+                if !recorder.isRunning { captureModePicker }
+                Spacer(minLength: 8)
+                listenFAB
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                audioSourcePicker
+                HStack(spacing: 10) {
+                    if !recorder.isRunning { captureModePicker }
+                    Spacer(minLength: 8)
+                    listenFAB
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(M3.color.card)
+        .overlay(alignment: .top) {
+            Rectangle().fill(M3.color.outlineVariant).frame(height: 1)
+        }
+    }
+
     /// Główna akcja ekranu jako rozszerzony FAB M3. W trakcie nasłuchu zmienia
     /// się w „Zatrzymaj" na kontenerze error, żeby nie dało się pomylić stanów.
     /// Co nagrywa „Słuchaj": sam dźwięk do transkryptu albo do tego wideo
@@ -351,8 +378,7 @@ struct MainView: View {
                       : "Tylko transkrypcja dźwięku, bez OBS")
             }
         }
-        .padding(4)
-        .background(M3.color.card, in: RoundedRectangle(cornerRadius: M3.shape.medium))
+        .fixedSize()
     }
 
     /// Skąd idzie dźwięk: komputer (głośniki rozmowy) i/lub mikrofon. W trakcie
@@ -404,8 +430,7 @@ struct MainView: View {
             .help("Wybierz mikrofon")
         }
         .disabled(recorder.isRunning)
-        .padding(4)
-        .background(M3.color.card, in: RoundedRectangle(cornerRadius: M3.shape.medium))
+        .fixedSize()
         .onReceive(NotificationCenter.default.publisher(for: AVCaptureDevice.wasConnectedNotification)) { _ in refreshMics() }
         .onReceive(NotificationCenter.default.publisher(for: AVCaptureDevice.wasDisconnectedNotification)) { _ in refreshMics() }
     }
@@ -430,7 +455,7 @@ struct MainView: View {
             Label(recorder.isRunning ? "Zatrzymaj" : "Słuchaj",
                   systemImage: recorder.isRunning ? "stop.fill" : "mic.fill")
         }
-        .buttonStyle(M3FABStyle(active: recorder.isRunning))
+        .buttonStyle(M3FABStyle(active: recorder.isRunning, compact: true))
         .disabled(busy || recorder.isProcessing)
         .keyboardShortcut("l", modifiers: .command)
     }
@@ -604,6 +629,13 @@ struct MainView: View {
         .background(M3.color.secondaryContainer, in: RoundedRectangle(cornerRadius: M3.shape.large))
     }
 
+    /// 1 głos, 2-4 głosy (poza 12-14), reszta głosów.
+    static func voices(_ n: Int) -> String {
+        if n == 1 { return "głos" }
+        let (d, h) = (n % 10, n % 100)
+        return (2...4).contains(d) && !(12...14).contains(h) ? "głosy" : "głosów"
+    }
+
     private var statusLine: some View {
         VStack(spacing: 0) {
             if recorder.isProcessing { M3LinearProgress().padding(.horizontal, 16) }
@@ -617,7 +649,7 @@ struct MainView: View {
                     .foregroundStyle(M3.color.onSurfaceVariant)
                     .lineLimit(1)
                 if (settings.identifySpeakers || settings.diarizeAfter) && recorder.speakerCount > 0 {
-                    M3Chip(text: "\(recorder.speakerCount) \(recorder.speakerCount == 1 ? "głos" : "głosy")",
+                    M3Chip(text: "\(recorder.speakerCount) \(Self.voices(recorder.speakerCount))",
                            systemImage: "person.2.fill")
                         .scaleEffect(0.85)
                 }
@@ -914,5 +946,28 @@ struct AnswerCard: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(M3.color.cardInset, in: RoundedRectangle(cornerRadius: M3.shape.medium))
+    }
+}
+
+/// Etykieta grupy w szynie: mono, kapitaliki, kreska — jak etykiety na
+/// stronie Breydaqs. Pierwsza grupa bez kreski nad sobą.
+private struct RailSection: View {
+    let title: String
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            if title != "Nagrania" {
+                Rectangle().fill(M3.color.outlineVariant).frame(width: 40, height: 1)
+                    .padding(.top, 6)
+            }
+            Text(title)
+                .font(.custom(BrandFonts.mono, size: 9).weight(.medium))
+                .textCase(.uppercase)
+                .tracking(0.4)
+                .foregroundStyle(M3.color.onSurfaceVariant.opacity(0.7))
+        }
+        .frame(width: 80)
+        .accessibilityAddTraits(.isHeader)
     }
 }

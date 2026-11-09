@@ -214,19 +214,23 @@ private struct M3IconButtonBody: View {
 /// „primary container", róg 16, wysokość 56, uniesienie poziomu 3.
 struct M3FABStyle: ButtonStyle {
     var active = false
+    /// Wersja do paska sterowania: niższa, mniejszy kwadrat ze strzałką.
+    var compact = false
 
     func makeBody(configuration: Configuration) -> some View {
-        M3FABBody(configuration: configuration, active: active)
+        M3FABBody(configuration: configuration, active: active, compact: compact)
     }
 }
 
 private struct M3FABBody: View {
     let configuration: ButtonStyleConfiguration
     let active: Bool
+    let compact: Bool
     @Environment(\.isEnabled) private var isEnabled
     @State private var hovered = false
 
     var body: some View {
+        let box: CGFloat = compact ? 30 : 40
         // Przycisk jak na stronie Breydaqs: atrament, tekst i kwadrat ze
         // strzałką, który przy najechaniu lekko się kurczy. Nagrywanie = akcent.
         let container = active ? M3.color.errorContainer : M3.color.primary
@@ -234,18 +238,20 @@ private struct M3FABBody: View {
         HStack(spacing: 12) {
             configuration.label
                 .labelStyle(.titleOnly)
-                .font(.custom(BrandFonts.sans, size: 17).weight(.semibold))
+                .font(.custom(BrandFonts.sans, size: compact ? 15 : 17).weight(.semibold))
+                .lineLimit(1)
+                .fixedSize()
             Text(active ? "■" : "↗")
-                .font(.system(size: active ? 13 : 17, weight: .semibold))
-                .frame(width: 40, height: 40)
+                .font(.system(size: active ? 12 : (compact ? 15 : 17), weight: .semibold))
+                .frame(width: box, height: box)
                 .background(RoundedRectangle(cornerRadius: M3.shape.small)
                     .fill(active ? M3.color.dark.opacity(0.18) : M3.color.onPrimary.opacity(0.16)))
                 .scaleEffect(hovered ? 0.84 : 1)
         }
         .foregroundStyle(content)
-        .padding(.leading, 16)
-        .padding(.trailing, 6)
-        .frame(height: 52)
+        .padding(.leading, compact ? 14 : 16)
+        .padding(.trailing, 5)
+        .frame(height: compact ? 40 : 52)
         .background(RoundedRectangle(cornerRadius: M3.shape.small).fill(container))
         .overlay(RoundedRectangle(cornerRadius: M3.shape.small)
             .fill(content.opacity(configuration.isPressed ? 0.08 : 0)))

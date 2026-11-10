@@ -270,6 +270,12 @@ const cleanCases = [
   // Segmenty cięte w środku słowa (whisper-server bez split_on_word, 2026-10-06).
   ' jest firmą outs\nourcingową.\n Najpóźniej w poniedz\niałek.\n',
   ' Google\nCloud, B2\nB, dobry,\nzaczynamy.',
+  // Pętla powtórzeń dekodera (turbo, rozmowa 2026-11-10).
+  ' jest? jest? jest? jest? jest? jest? jest? jest? jest?',
+  ' to jest? jest? jest? jest? jest? jest? jest? jest? małpa kolumny i nazwa tej kolumny',
+  'no i to jest to i to jest to i to jest to i to jest to dalej',
+  'Nie, nie, nie. Tak.',
+  'Żółw ŻÓŁW żółw, żółw! - koniec',
 ].map((input) => ({ input, result: cleanText(input) }));
 
 const out = {

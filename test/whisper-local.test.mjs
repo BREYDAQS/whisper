@@ -13,6 +13,18 @@ test('cleanText usuwa znaczniki whisper.cpp i łamania linii', () => {
   assert.equal(cleanText(null), '');
 });
 
+test('cleanText zwija pętlę powtórzeń whispera', () => {
+  // Prawdziwe wyjście turbo z rozmowy 2026-11-10.
+  assert.equal(cleanText(' jest? jest? jest? jest? jest? jest? jest? jest? jest?'), '');
+  assert.equal(
+    cleanText(' to jest? jest? jest? jest? jest? jest? jest? jest? małpa kolumny i nazwa tej kolumny'),
+    'to jest? małpa kolumny i nazwa tej kolumny',
+  );
+  assert.equal(cleanText('no i to jest to i to jest to i to jest to i to jest to dalej'), 'no i to jest to dalej');
+  // Trzy razy to jeszcze zwykła mowa.
+  assert.equal(cleanText('Nie, nie, nie. Tak.'), 'Nie, nie, nie. Tak.');
+});
+
 test('klient wysyła WAV i parsuje odpowiedź', async () => {
   const calls = [];
   const client = new WhisperLocalClient({

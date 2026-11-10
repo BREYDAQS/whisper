@@ -1164,6 +1164,26 @@
     {
       "input": " Google\nCloud, B2\nB, dobry,\nzaczynamy.",
       "result": "Google Cloud, B2 B, dobry, zaczynamy."
+    },
+    {
+      "input": " jest? jest? jest? jest? jest? jest? jest? jest? jest?",
+      "result": ""
+    },
+    {
+      "input": " to jest? jest? jest? jest? jest? jest? jest? jest? małpa kolumny i nazwa tej kolumny",
+      "result": "to jest? małpa kolumny i nazwa tej kolumny"
+    },
+    {
+      "input": "no i to jest to i to jest to i to jest to i to jest to dalej",
+      "result": "no i to jest to dalej"
+    },
+    {
+      "input": "Nie, nie, nie. Tak.",
+      "result": "Nie, nie, nie. Tak."
+    },
+    {
+      "input": "Żółw ŻÓŁW żółw, żółw! - koniec",
+      "result": "Żółw - koniec"
     }
   ]
 }

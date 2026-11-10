@@ -302,6 +302,7 @@ public actor SourcePipeline {
 
         guard livePreview, let u = utterance else { return }
         guard inFlight == nil else { trace("tick: poprzednia w locie"); return }
+        guard Date() >= previewIdleUntil else { trace("tick: serwer odpoczywa"); return }
         let now = ring.newestMs
         guard now - u.startMs >= minAudioMs else { return }
 
@@ -316,12 +317,26 @@ public actor SourcePipeline {
         let startMs = u.startMs
         inFlight = Task<Void, Never> { [weak self] in
             guard let self else { return }
+            let started = Date()
             await self.runIncremental(pcm, key: key, startMs: startMs)
-            await self.clearInFlight()
+            await self.clearInFlight(started: started)
         }
     }
 
-    private func clearInFlight() { inFlight = nil }
+    /// Do kiedy nie wysyłamy kolejnej rundy przyrostowej.
+    ///
+    /// whisper-server liczy żądania po kolei i **dokańcza anulowane** — klient
+    /// rozłącza się, serwer liczy dalej. Przy turbo runda trwa ~1,2 s, czyli
+    /// tyle, co odstęp między rundami: serwer był zajęty bez przerwy, a wersja
+    /// ostateczna czekała w kolejce. Zmierzone 2026-11-10 (M4 Pro): 1,8 s
+    /// sama, 2,5-3 s za anulowaną rundą. Przerwa co najmniej tak długa jak
+    /// ostatnia runda trzyma serwer wolny przez połowę czasu.
+    private var previewIdleUntil = Date.distantPast
+
+    private func clearInFlight(started: Date) {
+        inFlight = nil
+        previewIdleUntil = Date().addingTimeInterval(Date().timeIntervalSince(started))
+    }
 
     /// Runda przyrostowa: pełna transkrypcja wypowiedzi od jej początku.
     ///

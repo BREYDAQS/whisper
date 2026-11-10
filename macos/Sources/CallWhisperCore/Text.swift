@@ -126,7 +126,46 @@ public enum Text {
                 if square == 0 && round == 0 { out.append(ch) }
             }
         }
-        return stripHallucinations(out)
+        return collapseLoops(stripHallucinations(out))
+    }
+
+    /// Od tylu powtórzeń z rzędu to pętla dekodera, a nie mowa („nie, nie, nie").
+    private static let loopMinRepeats = 4
+    private static let loopMaxWords = 4
+
+    /// Zwija pętlę powtórzeń whispera do jednego wystąpienia.
+    ///
+    /// Dekoder potrafi utknąć na jednym słowie („jest? jest? jest?…" ×13,
+    /// turbo, 2026-11-10), a zapętlony tekst wchodzi do promptu i ciągnie
+    /// pętlę przez kolejne wypowiedzi. Tekst złożony wyłącznie z pętli to
+    /// halucynacja — znika.
+    public static func collapseLoops(_ text: String) -> String {
+        let words = text.split(separator: " ").map(String.init)
+        let keys = words.map { $0.lowercased().filter { $0.isLetter || $0.isNumber } }
+        var out: [String] = []
+        var looped = false
+        var kept = 0
+        var i = 0
+        while i < words.count {
+            var matched = false
+            for size in 1...loopMaxWords {
+                guard i + size <= words.count else { break }
+                let unit = Array(keys[i..<i + size])
+                if unit.contains(where: \.isEmpty) { break }
+                var repeats = 1
+                while i + (repeats + 1) * size <= words.count,
+                      Array(keys[(i + repeats * size)..<(i + (repeats + 1) * size)]) == unit { repeats += 1 }
+                if repeats >= loopMinRepeats {
+                    out.append(contentsOf: words[i..<i + size])
+                    i += repeats * size
+                    looped = true
+                    matched = true
+                    break
+                }
+            }
+            if !matched { out.append(words[i]); i += 1; kept += 1 }
+        }
+        return looped && kept == 0 ? "" : out.joined(separator: " ")
     }
 
     /// Typowe halucynacje whispera na ciszy i szumie („Dziękuję za uwagę.",

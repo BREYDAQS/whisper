@@ -105,7 +105,7 @@ export class WhisperLocalClient {
  * w transkrypcie chcemy jedną, czystą linię.
  */
 export function cleanText(raw) {
-  return stripHallucinations(String(raw ?? '')
+  return collapseLoops(stripHallucinations(String(raw ?? '')
     // Granica segmentu w środku słowa: litera, łamanie, mała litera bez
     // spacji (nowe słowo whisper zaczyna od spacji). Bez tego
     // „odpow\niedzialny" dawało w notatce „odpow iedzialny".
@@ -113,5 +113,41 @@ export function cleanText(raw) {
     .replace(/\[[^\]]*\]/g, ' ')       // [BLANK_AUDIO], [Muzyka] itd.
     .replace(/\([^)]*\)/g, ' ')        // (szum), (music)
     .replace(/\s+/g, ' ')
-    .trim());
+    .trim()));
+}
+
+/** Od tylu powtórzeń z rzędu to pętla dekodera, a nie mowa („nie, nie, nie"). */
+const LOOP_MIN_REPEATS = 4;
+const LOOP_MAX_WORDS = 4;
+
+/**
+ * Zwija pętlę powtórzeń whispera do jednego wystąpienia.
+ *
+ * Dekoder potrafi utknąć na jednym słowie („jest? jest? jest?…" ×13, turbo,
+ * 2026-11-10), a zapętlony tekst wchodzi do promptu i ciągnie pętlę przez
+ * kolejne wypowiedzi. Tekst złożony wyłącznie z pętli to halucynacja — znika.
+ */
+export function collapseLoops(text) {
+  const words = text.split(' ').filter(Boolean);
+  const keys = words.map((w) => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''));
+  const out = [];
+  let looped = false;
+  let kept = 0;
+  let i = 0;
+  while (i < words.length) {
+    let matched = false;
+    for (let size = 1; size <= LOOP_MAX_WORDS && !matched; size++) {
+      const unit = keys.slice(i, i + size);
+      if (unit.length < size || unit.some((k) => !k)) break;
+      let repeats = 1;
+      while (unit.every((k, j) => keys[i + repeats * size + j] === k)) repeats++;
+      if (repeats >= LOOP_MIN_REPEATS) {
+        out.push(...words.slice(i, i + size));
+        i += repeats * size;
+        looped = matched = true;
+      }
+    }
+    if (!matched) { out.push(words[i]); i++; kept++; }
+  }
+  return looped && kept === 0 ? '' : out.join(' ');
 }

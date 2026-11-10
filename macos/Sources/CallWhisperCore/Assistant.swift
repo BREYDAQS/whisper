@@ -15,6 +15,7 @@ private let questionOpenersPL = [
 private let questionOpenersEN = [
     "is", "are", "was", "were", "do", "does", "did", "can", "could", "should", "would",
     "will", "what", "why", "how", "when", "where", "who", "which", "whose", "whom",
+    "have", "has",
 ]
 private let allOpeners: [[String]] = (questionOpenersPL + questionOpenersEN)
     .map { Text.fold($0).split(separator: " ").map(String.init) }
@@ -39,6 +40,12 @@ private let askPhrases = [
     "chcialbys zapytac", "chcesz o cos zapytac", "any questions",
     "tell me about", "walk me through", "describe",
     "anyone know", "does anyone", "what does", "how do we", "quick question",
+    // Angielskie odpowiedniki poleceń z rekrutacji. Po przejściu na angielski
+    // („tell us about your startup.") whisper stawia kropkę, a słowa
+    // pytającego na początku nie ma - bez nich przepadały jak polskie.
+    "tell us", "walk us through", "talk to us", "talk about", "introduce yourself",
+    "hear about", "give us an example", "give me an example", "share a bit", "share with us",
+    "can you explain", "could you explain", "can you tell", "could you tell",
 ]
 
 /// Pytania techniczno-organizacyjne, na które asystent nie ma czego odpowiedzieć.
@@ -174,7 +181,7 @@ public enum QuestionDetector {
 
     static func isSecondPerson(_ word: String) -> Bool {
         guard word.allSatisfy(\.isLetter), !asideVerbs.contains(word) else { return false }
-        if word == "jestes" { return true }
+        if word == "jestes" || word == "you" || word == "your" { return true }
         return ["les", "las", "lbys", "labys", "esz", "isz", "ysz", "asz"]
             .contains { word.hasSuffix($0) && word.count - $0.count >= 3 }
     }
@@ -370,6 +377,7 @@ private let maxProjectContextChars = 8000
 /// a odpowiedź ma paść, zanim rozmowa pójdzie dalej.
 public func buildPrompt(question: String, segments: [Segment] = [], title: String = "",
                         projectContext: String = "",
+                        answerLanguage: String = "",
                         maxSegments: Int = defaultContextSegments) -> String? {
     let asked = Text.normalize(question)
     guard !asked.isEmpty else { return nil }
@@ -396,6 +404,12 @@ public func buildPrompt(question: String, segments: [Segment] = [], title: Strin
     }
     if !context.isEmpty { parts.append("Ostatnie wypowiedzi:\n\(context)") }
     parts.append("Pytanie, na które masz odpowiedzieć:\n\(asked)")
+    // Pytanie bywa po polsku („opowiesz nam po angielsku o startupie?"), a
+    // odpowiedź ma być po angielsku - „w języku pytania" z promptu systemowego
+    // trafiłoby w zły język. Prosty angielski, bo czyta się go na głos z B2.
+    if answerLanguage == "en" {
+        parts.append("Rozmowa przeszła na angielski: podpowiedź napisz po angielsku, prostym językiem mówionym (poziom B2), bez trudnych idiomów.")
+    }
     return parts.joined(separator: "\n\n")
 }
 

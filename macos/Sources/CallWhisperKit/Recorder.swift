@@ -18,6 +18,10 @@ public final class Recorder: ObservableObject {
     @Published public private(set) var status = "Gotowy"
     @Published public private(set) var lastError: String?
     @Published public private(set) var speakerCount = 0
+    /// Język rozmowy w tej chwili: `pl` albo `en`. Startuje z Ustawień,
+    /// a w trakcie zmienia się przyciskiem albo sam, gdy ktoś poprosi
+    /// („opowiesz nam po angielsku…?"). Steruje whisperem i podpowiedziami.
+    @Published public private(set) var conversationLanguage = "pl"
     @Published public private(set) var startedAt: Double?
     /// Praca po rozmowie albo import — przycisk „Słuchaj" ma wtedy czekać.
     @Published public private(set) var isProcessing = false
@@ -59,6 +63,7 @@ public final class Recorder: ObservableObject {
 
     public init(settings: AppSettings = .shared) {
         self.settings = settings
+        self.conversationLanguage = settings.languageCode
     }
 
     // MARK: - cykl życia
@@ -104,6 +109,7 @@ public final class Recorder: ObservableObject {
         }
 
         let now = origin ?? nowMs()
+        conversationLanguage = settings.languageCode
         store = TranscriptStore(startedAt: now)
         startedAt = now
         segments = []
@@ -126,7 +132,7 @@ public final class Recorder: ObservableObject {
             for source in sources {
                 let pipeline = SourcePipeline(source: source, backend: backend,
                                               whisperPort: settings.whisperPort,
-                                              languageCode: settings.languageCode,
+                                              languageCode: conversationLanguage,
                                               identifySpeakers: settings.identifySpeakers,
                                               // Nazwy z kontekstu projektu doklejamy same: plik
                                               // już je ma, a whisper bez nich je przekręca.
@@ -178,17 +184,40 @@ public final class Recorder: ObservableObject {
         isRunning = true
         activity = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiated, .latencyCritical], reason: "Nasłuch rozmowy i podpowiedzi na żywo")
-        // Język w statusie celowo: cicha rozbieżność między zapisanym językiem
-        // a tym, czego oczekuje użytkownik, kosztowała już jedną sesję debugowania
-        // (whisper dostawał `language=en` i tłumaczył polski na angielski).
-        let engine = backend == .whisperLocal
-            ? "whisper \(settings.whisperModel) · \(settings.languageCode)"
-            : "Apple · \(settings.languageCode)"
-        let heard = sources.map { $0 == .system ? "system" : "mikrofon" }.joined(separator: " + ")
-        status = "Słucham: \(heard) · \(engine)"
-        if obsSession { status += " · OBS nagrywa" }
+        heardLabel = sources.map { $0 == .system ? "system" : "mikrofon" }.joined(separator: " + ")
+        status = listeningStatus()
         if let obsNote { lastError = obsNote }
         startTicker()
+    }
+
+    private var heardLabel = ""
+
+    /// Język w statusie celowo: cicha rozbieżność między zapisanym językiem
+    /// a tym, czego oczekuje użytkownik, kosztowała już jedną sesję debugowania
+    /// (whisper dostawał `language=en` i tłumaczył polski na angielski).
+    private func listeningStatus() -> String {
+        let engine = settings.asrBackend == .whisperLocal
+            ? "whisper \(settings.whisperModel) · \(conversationLanguage)"
+            : "Apple · \(settings.languageCode)"
+        return "Słucham: \(heardLabel) · \(engine)" + (obsSession ? " · OBS nagrywa" : "")
+    }
+
+    /// Przełącza język rozmowy. W trakcie nasłuchu działa w locie i tylko na
+    /// tę rozmowę; poza nim ustawia język, od którego zacznie się następna.
+    ///
+    /// Silnik Apple języka w locie nie zmieni (rozpoznawanie startuje z jednym
+    /// locale), więc tam przełącza się tylko język podpowiedzi.
+    public func setConversationLanguage(_ code: String) {
+        guard isRunning else {
+            settings.language = code == "en" ? "en-US" : "pl-PL"
+            conversationLanguage = code
+            return
+        }
+        guard code != conversationLanguage else { return }
+        conversationLanguage = code
+        let running = Array(pipelines.values)
+        Task { for pipeline in running { await pipeline.setLanguage(code) } }
+        status = listeningStatus()
     }
 
     /// Podnosi `whisper-server`, jeśli trzeba. Zwraca `false`, gdy się nie da.
@@ -535,6 +564,9 @@ public final class Recorder: ObservableObject {
             // Pieczętujemy klucz: ten sam wynik potrafi przyjść ponownie,
             // a bez tego powstałby drugi segment z całą wypowiedzią.
             store.seal(update.key)
+            // Przed skanem pytań (ticker), żeby podpowiedź do „opowiesz nam
+            // po angielsku…?" poszła już w nowym języku.
+            if let code = LanguageSwitch.requested(in: update.text) { setConversationLanguage(code) }
         }
         publish()
     }
@@ -598,7 +630,8 @@ public final class Recorder: ObservableObject {
         let asked = question.isEmpty && image != nil ? "Co widzisz na tym obrazku?" : question
         guard let prompt = buildPrompt(question: asked, segments: store.segments,
                                        title: settings.title,
-                                       projectContext: settings.projectContext) else { return }
+                                       projectContext: settings.projectContext,
+                                       answerLanguage: conversationLanguage == "en" ? "en" : "") else { return }
 
         let backend = settings.assistantBackend
         // Klucz czytamy tylko dla API. Wcześniej czytany przy każdym pytaniu,

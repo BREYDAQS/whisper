@@ -216,6 +216,10 @@ struct MenuBarView: View {
         .keyboardShortcut("l")
 
         Text(recorder.status)
+        Toggle("Rozmowa po angielsku", isOn: Binding(
+            get: { recorder.conversationLanguage == "en" },
+            set: { recorder.setConversationLanguage($0 ? "en" : "pl") }))
+            .keyboardShortcut("e")
         if let meeting = meetings.activeMeeting, !recorder.isRunning {
             Text("Trwa rozmowa w \(meeting)")
         }

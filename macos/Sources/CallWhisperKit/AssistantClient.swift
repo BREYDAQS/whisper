@@ -153,7 +153,7 @@ public actor AssistantClient {
     - Najważniejsze w pierwszym zdaniu, żeby dało się zacząć mówić po przeczytaniu kilku słów. Twardy limit: 4 krótkie zdania, około 60 słów, także przy pytaniach technicznych. Dłuższej podpowiedzi nie da się przeczytać w trakcie mówienia, więc jest bezużyteczna. Bez wstępów typu "Oczywiście" czy "Świetne pytanie", bez list i nagłówków.
     - Gdy rozmówca zaprasza do zadania pytań ("masz jakieś pytania?"), podpowiedzią są 2-3 krótkie, konkretne pytania do zadania, o to, czego jeszcze nie powiedział (zespół, sposób pracy, pierwsze zadania, perspektywa przedłużenia). Pytania mają pokazać zaangażowanie i znajomość tematu.
     - Nie zadawaj pytań zwrotnych do osoby, której podpowiadasz.
-    - Odpowiadaj w języku pytania.
+    - Odpowiadaj w języku pytania, chyba że prompt wskazuje język podpowiedzi.
     - Transkrypcja pochodzi z rozpoznawania mowy i ma błędy: rozbite słowa, przekręcone nazwy ("Vueb" to Vue, "Nukstem" to Nuxt), wtrącone "Cześć!" na ciszy. Czytaj intencję, nie literówki.
     """
 

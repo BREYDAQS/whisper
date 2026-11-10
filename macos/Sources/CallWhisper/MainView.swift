@@ -218,6 +218,7 @@ struct MainView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             VStack(alignment: .trailing, spacing: 10) {
+                languagePicker
                 audioSourcePicker
                 if !recorder.isRunning { captureModePicker }
                 listenFAB
@@ -301,6 +302,35 @@ struct MainView: View {
         }
         .padding(4)
         .background(M3.color.card, in: RoundedRectangle(cornerRadius: M3.shape.medium))
+    }
+
+    /// Język rozmowy. W odróżnieniu od źródeł działa też w trakcie nasłuchu:
+    /// rekruter przechodzi na angielski w połowie rozmowy, a whisper i
+    /// podpowiedzi mają pójść za nim od razu. Sam też się przełącza, gdy
+    /// w transkrypcie padnie prośba („opowiesz nam po angielsku…?").
+    private var languagePicker: some View {
+        HStack(spacing: 6) {
+            ForEach(["pl", "en"], id: \.self) { code in
+                Button {
+                    recorder.setConversationLanguage(code)
+                } label: {
+                    M3Chip(text: code == "en" ? "English" : "Polski",
+                           selected: recorder.conversationLanguage == code)
+                }
+                .buttonStyle(.plain)
+                .help(code == "en"
+                      ? "Rozmowa po angielsku: whisper słucha angielskiego, podpowiedzi po angielsku (⌘E)"
+                      : "Rozmowa po polsku (⌘E przełącza)")
+            }
+        }
+        .padding(4)
+        .background(M3.color.card, in: RoundedRectangle(cornerRadius: M3.shape.medium))
+        .background {
+            Button("") { recorder.setConversationLanguage(recorder.conversationLanguage == "en" ? "pl" : "en") }
+                .keyboardShortcut("e", modifiers: .command)
+                .opacity(0)
+                .allowsHitTesting(false)
+        }
     }
 
     /// Skąd idzie dźwięk: komputer (głośniki rozmowy) i/lub mikrofon. W trakcie

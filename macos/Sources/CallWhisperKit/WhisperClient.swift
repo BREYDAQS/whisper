@@ -41,7 +41,7 @@ public struct WhisperClient: Sendable {
     }
 
     public let endpoint: URL
-    public let language: String
+    public var language: String
     private let session: URLSession
 
     /// - Parameter timeout: 15 s dla rozmowy na żywo — 45 s audio na modelu

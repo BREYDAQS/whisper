@@ -46,7 +46,7 @@ public actor SourcePipeline {
     private let recognizer = SpeechRecognizer()
 
     // --- ścieżka whisper ---
-    private let whisper: WhisperClient
+    private var whisper: WhisperClient
 
     /// Ostatnie zdania rozmowy, podawane whisperowi jako `initial_prompt`.
     ///
@@ -192,6 +192,16 @@ public actor SourcePipeline {
         inputTask = Task { [weak self] in
             for await chunk in stream { await self?.process(chunk) }
         }
+    }
+
+    /// Zmienia język whispera w trakcie rozmowy (rekruter przeszedł na
+    /// angielski). Działa od następnej rundy, także dla otwartej wypowiedzi.
+    /// Kontekst czyścimy: zdania w starym języku jako `initial_prompt`
+    /// ciągną dekoder z powrotem w stronę tłumaczenia.
+    public func setLanguage(_ code: String) {
+        guard whisper.language != code else { return }
+        whisper.language = code
+        context = ""
     }
 
     /// Wołane z wątku przechwytywania. Tylko kolejkuje — nic tu nie liczymy.

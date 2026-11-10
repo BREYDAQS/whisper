@@ -20,6 +20,7 @@ const QUESTION_OPENERS = {
   en: [
     'is', 'are', 'was', 'were', 'do', 'does', 'did', 'can', 'could', 'should', 'would',
     'will', 'what', 'why', 'how', 'when', 'where', 'who', 'which', 'whose', 'whom',
+    'have', 'has',
   ],
 };
 
@@ -45,6 +46,11 @@ const ASK_PHRASES = [
   'chcialbys zapytac', 'chcesz o cos zapytac', 'any questions',
   'tell me about', 'walk me through', 'describe',
   'anyone know', 'does anyone', 'what does', 'how do we', 'quick question',
+  // Angielskie odpowiedniki poleceń z rekrutacji: whisper stawia kropkę,
+  // a słowa pytającego na początku nie ma.
+  'tell us', 'walk us through', 'talk to us', 'talk about', 'introduce yourself',
+  'hear about', 'give us an example', 'give me an example', 'share a bit', 'share with us',
+  'can you explain', 'could you explain', 'can you tell', 'could you tell',
 ];
 
 /**
@@ -155,7 +161,7 @@ const FILLER_WORDS = new Set([
  * z takim czasownikiem to pytanie: „jakie featury stworzyłeś, co napisałeś."
  * Urwane („…ile już...") nie: tam trzeba poczekać na resztę.
  */
-const SECOND_PERSON = /^(?:\p{L}{3,}(?:les|las|lbys|labys|esz|isz|ysz|asz)|jestes)$/u;
+const SECOND_PERSON = /^(?:\p{L}{3,}(?:les|las|lbys|labys|esz|isz|ysz|asz)|jestes|you|your)$/u;
 /** „Jak widzisz, …", „jak wiesz, …" - wtrącenia, nie pytania. */
 const ASIDE_VERBS = new Set(['widzisz', 'wiesz', 'slyszysz', 'rozumiesz', 'mowisz', 'pamietasz', 'mowiles', 'wspominales']);
 const isSecondPerson = (w) => SECOND_PERSON.test(w) && !ASIDE_VERBS.has(w);

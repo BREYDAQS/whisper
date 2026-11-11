@@ -30,7 +30,7 @@ struct SettingsView: View {
         case .serverDisabled: return "W OBS włącz serwer: Narzędzia → Ustawienia serwera WebSocket → Włącz serwer WebSocket"
         case .wrongPassword: return "OBS odrzucił hasło. Zapisz ustawienia serwera WebSocket w OBS jeszcze raz."
         case .connected: return "Połączono z OBS"
-        case .recording: return "OBS nagrywa, brqs-whisper słucha"
+        case .recording: return "OBS nagrywa, call-whisper słucha"
         }
     }
 

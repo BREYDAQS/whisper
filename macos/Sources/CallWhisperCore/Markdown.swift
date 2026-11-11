@@ -105,7 +105,7 @@ public enum Markdown {
             out.append("started: \(yamlString(TimeFormat.localDateTime(startedAt)))")
             out.append("duration: \(yamlString(TimeFormat.offset(durationMs)))")
             out.append("speakers: [\(order.map(yamlString).joined(separator: ", "))]")
-            out.append("generator: brqs-whisper")
+            out.append("generator: call-whisper")
             out.append("---")
             out.append("")
         }

@@ -1,14 +1,14 @@
 import AppKit
 
-/// Sprzątanie po dawnej nazwie (call-whisper.app -> brqs-whisper.app).
+/// Sprzątanie po dawnej nazwie (brqs-whisper.app -> z powrotem call-whisper.app).
 ///
 /// Dane zostają tam, gdzie były (ustawienia, modele, logi, biblioteka) —
 /// nowa apka z nich korzysta. Usuwamy tylko to, co zostało po starej
 /// aplikacji: jej paczkę obok nowej i jej ikonę w Docku, która po usunięciu
 /// paczki pokazywałaby znak zapytania.
 enum LegacyCleanup {
-    private static let oldName = "call-whisper.app"
-    private static let newName = "brqs-whisper.app"
+    private static let oldName = "brqs-whisper.app"
+    private static let newName = "call-whisper.app"
 
     static func run() {
         guard Bundle.main.bundleURL.lastPathComponent == newName else { return }
@@ -17,9 +17,11 @@ enum LegacyCleanup {
     }
 
     /// Stara paczka obok nowej — do kosza (da się odzyskać), nie na stałe.
+    /// Bywa też symlinkiem z bundle.sh (dla starego Updatera) — wtedy znika
+    /// sam link, nie paczka, na którą wskazuje.
     private static func removeOldBundle() {
         let old = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent(oldName)
-        guard FileManager.default.fileExists(atPath: old.path) else { return }
+        guard (try? FileManager.default.attributesOfItem(atPath: old.path)) != nil else { return }
         try? FileManager.default.trashItem(at: old, resultingItemURL: nil)
     }
 
@@ -46,7 +48,7 @@ enum LegacyCleanup {
             file["_CFURLString"] = Bundle.main.bundleURL.absoluteString
             file["_CFURLStringType"] = 15
             tile["file-data"] = file
-            tile["file-label"] = "brqs-whisper"
+            tile["file-label"] = "call-whisper"
             // Zakładka wskazuje na starą ścieżkę — bez niej Dock czyta URL.
             tile.removeValue(forKey: "book")
             app["tile-data"] = tile

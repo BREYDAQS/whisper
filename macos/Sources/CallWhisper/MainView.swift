@@ -108,7 +108,7 @@ struct MainView: View {
             Image(systemName: "waveform")
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(M3.color.accent)
-            Text(screen == .library ? "Nagrania" : (recorder.importedMeta?.title ?? "brqs-whisper"))
+            Text(screen == .library ? "Nagrania" : (recorder.importedMeta?.title ?? "call-whisper"))
                 .font(M3.type.titleLarge)
                 .tracking(-1)
                 .foregroundStyle(M3.color.onSurface)

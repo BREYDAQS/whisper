@@ -115,9 +115,9 @@ final class Updater: ObservableObject {
     /// Nowa paczka leży w tym samym miejscu co stara. Pomocniczy proces czeka,
     /// aż ten się zamknie, i otwiera ją od nowa.
     private func relaunch() {
-        // Paczka zmieniła nazwę (call-whisper.app -> brqs-whisper.app): po
+        // Paczka zmieniła nazwę (brqs-whisper.app -> call-whisper.app): po
         // przebudowie otwieramy tę, którą zbudował bundle.sh, a nie starą ścieżkę.
-        let built = repo?.appendingPathComponent("macos/build/brqs-whisper.app").path
+        let built = repo?.appendingPathComponent("macos/build/call-whisper.app").path
         let app = built.flatMap { FileManager.default.fileExists(atPath: $0) ? $0 : nil } ?? Bundle.main.bundleURL.path
         let pid = ProcessInfo.processInfo.processIdentifier
         let helper = Process()

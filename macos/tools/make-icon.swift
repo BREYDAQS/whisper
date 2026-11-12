@@ -88,6 +88,36 @@ try! task.run()
 task.waitUntilExit()
 print("Zapisano \(output.path) (źródło: \(source.lastPathComponent))")
 
+// Pasek menu: obraz-szablon (liczy się tylko alfa, kolor daje system).
+// Bezczynna — sama maskotka (jasne linie, kadr na głowę); nasłuch — pełny
+// kafel z maskotką wyciętą (ciemne pola). Jak dawniej circle / circle.fill.
+func menuBar(px: Int, active: Bool) -> CGImage {
+    let tile = render(size: px, inset: active ? 1 : 295.0 / 212.0)
+    let ctx = CGContext(data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: px * 4,
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    ctx.draw(tile, in: CGRect(x: 0, y: 0, width: px, height: px))
+    let p = ctx.data!.bindMemory(to: UInt8.self, capacity: px * px * 4)
+    for i in stride(from: 0, to: px * px * 4, by: 4) {
+        let a = Double(p[i + 3]) / 255
+        guard a > 0 else { continue }
+        // grafika czarno-biała: R = jasność; tło #08090A nie jest czarne — próg
+        let lum = min(max((Double(p[i]) / 255 / a - 0.1) / 0.8, 0), 1)
+        let alpha = (active ? 1 - lum : lum) * a
+        let v = UInt8((alpha * 255).rounded())
+        (p[i], p[i + 1], p[i + 2], p[i + 3]) = (v, v, v, v)
+    }
+    return ctx.makeImage()!
+}
+for active in [false, true] {
+    let name = active ? "MenuBarIconActive" : "MenuBarIcon"
+    for scale in [1, 2] {
+        let url = root.appendingPathComponent("Resources/\(name)\(scale == 2 ? "@2x" : "").png")
+        write(menuBar(px: 18 * scale, active: active), to: url)
+        print("Zapisano \(url.path)")
+    }
+}
+
 if let i = CommandLine.arguments.firstIndex(of: "--master"), CommandLine.arguments.count > i + 1 {
     let url = URL(fileURLWithPath: CommandLine.arguments[i + 1])
     write(render(size: 1024, inset: 1), to: url)

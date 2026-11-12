@@ -242,11 +242,21 @@ struct MenuBarLabel: View {
 
     var body: some View {
         HStack(spacing: 3) {
-            Image(systemName: recorder.isRunning ? "waveform.circle.fill" : "waveform.circle")
+            Image(nsImage: Self.icon(active: recorder.isRunning))
             if recorder.isRunning && !recorder.segments.isEmpty {
                 Text("\(recorder.segments.count)")
             }
         }
+    }
+
+    /// Maskotka z `make-icon.swift` jako szablon (kolor daje system);
+    /// poza paczką .app — dawny symbol.
+    static func icon(active: Bool) -> NSImage {
+        let image = Bundle.main.image(forResource: active ? "MenuBarIconActive" : "MenuBarIcon")
+            ?? NSImage(systemSymbolName: active ? "waveform.circle.fill" : "waveform.circle",
+                       accessibilityDescription: nil)!
+        image.isTemplate = true
+        return image
     }
 }
 
